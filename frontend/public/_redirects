@@ -1,0 +1,9 @@
+# Redirect all routes to index.html for client-side routing
+/*    /index.html   200
+
+# Handle specific routes
+/login    /index.html   200
+/signup   /index.html   200
+/about    /index.html   200
+/customer/*   /index.html   200
+/owner/*  /index.html   200

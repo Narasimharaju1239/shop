@@ -1,0 +1,38 @@
+/* CSS Reset - Remove default browser margins and padding */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Guarantee scrollbars are hidden for Login and Signup pages */
+body.login-page, html.login-page,
+body.signup-page, html.signup-page {
+  overflow: hidden !important;
+}
+
+/* Hide scrollbars ONLY for Login and Signup pages */
+.login-page, .signup-page {
+  overflow: hidden !important;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.login-page::-webkit-scrollbar, .signup-page::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
