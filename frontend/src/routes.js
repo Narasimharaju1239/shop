@@ -30,7 +30,7 @@ import PrivateRoute from './utils/PrivateRoute';
 import CustomerCompanies from './customer/Companies';
 import CompanyProducts from './customer/CompanyProducts';
 import { AuthContext } from './context/AuthContext';
-import AddProduct from './owner/AddProduct';
+// ...existing code...
 
 const RoutesConfig = () => {
   const { user } = useContext(AuthContext);
@@ -53,7 +53,6 @@ const RoutesConfig = () => {
       <Route path="/owner/home" element={<PrivateRoute role="owner"><Layout><OwnerHome /></Layout></PrivateRoute>} />
       <Route path="/owner/companies" element={<PrivateRoute role="owner"><Layout><Companies /></Layout></PrivateRoute>} />
       <Route path="/owner/products" element={<PrivateRoute role="owner"><Layout><OwnerProducts /></Layout></PrivateRoute>} />
-      <Route path="/owner/add-product" element={<PrivateRoute role="owner"><Layout><AddProduct /></Layout></PrivateRoute>} />
       <Route path="/customer/products" element={<PrivateRoute role="customer"><Layout><CustomerProducts /></Layout></PrivateRoute>} />
       <Route path="/customer/products/:id" element={<PrivateRoute role="customer"><Layout><ProductDetails /></Layout></PrivateRoute>} />
       <Route path="/customer/cart" element={<PrivateRoute role="customer"><Layout><Cart /></Layout></PrivateRoute>} />

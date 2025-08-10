@@ -308,7 +308,11 @@ const ManageOrders = () => {
       padding: '20px',
       background: currentTheme.background,
       minHeight: '100vh',
-      fontFamily: 'Arial, sans-serif'
+      fontFamily: 'Arial, sans-serif',
+      width: '100%',
+      maxWidth: '100vw',
+      boxSizing: 'border-box',
+      overflowX: 'hidden'
     }}>
       {/* Header */}
       <div style={{ 

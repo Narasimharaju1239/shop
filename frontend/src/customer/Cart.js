@@ -53,9 +53,14 @@ const Cart = () => {
                 borderBottom: '1px solid #eee', padding: '10px 0',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 16
               }}>
-                <span>
-                  {item.product?.name || '-'} <span style={{ color: '#888', fontSize: 14 }}>x {item.quantity}</span>
-                </span>
+                <div style={{ flex: 1 }}>
+                  <div>
+                    {item.product?.name || '-'} <span style={{ color: '#888', fontSize: 14 }}>x {item.quantity}</span>
+                  </div>
+                  <div style={{ color: '#888', fontSize: 13, marginTop: 2 }}>
+                    GST: <b>{item.product?.gst !== undefined && item.product?.gst !== null ? `${item.product.gst}%` : '-'}</b> &nbsp;|&nbsp; HSN Code: <b>{item.product?.hsnCode ?? '-'}</b>
+                  </div>
+                </div>
                 <span style={{ fontWeight: 600 }}>
                   ₹{item.product?.price ? Math.round(item.product.price * (1 - (item.product.offer || 0) / 100) * item.quantity).toLocaleString('en-IN') : '-'}
                   {item.product?.offer ? (

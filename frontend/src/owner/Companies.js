@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Companies = () => {
   const [companies, setCompanies] = useState([]);
+  const [search, setSearch] = useState('');
   const [name, setName] = useState('');
   const [image, setImage] = useState('');
   const [imagePreview, setImagePreview] = useState('');
@@ -88,41 +89,58 @@ const Companies = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Manage Companies</h2>
-      <input
-        placeholder="Company Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ padding: '10px', marginRight: '10px' }}
-      />
-      <input
-        placeholder="Image URL"
-        value={image}
-        onChange={(e) => { setImage(e.target.value); setImagePreview(''); }}
-        style={{ padding: '10px', marginRight: '10px' }}
-      />
-      <input
-        type="file"
-        accept="image/*"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        style={{ marginRight: '10px' }}
-      />
-      {/* Image preview for company upload */}
-      {imagePreview && (
-        <img src={imagePreview} alt="Preview" style={{ width: 80, height: 80, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 6, marginRight: 10, verticalAlign: 'middle' }} />
-      )}
-      {uploading && <span>Uploading...</span>}
-      <button onClick={handleAdd} style={{
-        padding: '10px 20px', background: editId ? '#fbc02d' : '#1565c0', color: '#fff',
-        border: 'none', marginRight: '10px'
-      }}>{editId ? 'Update Company' : 'Add Company'}</button>
-      {editId && (
-        <button onClick={() => { setEditId(null); setName(''); setImage(''); setImagePreview(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-          style={{ padding: '10px 20px', background: '#bdbdbd', color: '#333', border: 'none' }}>
-          Cancel
-        </button>
-      )}
+      <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', color: '#1565c0', marginBottom: '18px', letterSpacing: 1 }}>Manage Companies</h2>
+      {/* Search Bar */}
+      <div style={{ maxWidth: 400, margin: '0 auto 24px auto', textAlign: 'center' }}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search companies by name..."
+          style={{ padding: '12px', width: '100%', borderRadius: 8, border: '1px solid #1565c0', fontSize: 16 }}
+        />
+      </div>
+      <div style={{
+        maxWidth: '700px',
+        margin: '0 auto 32px auto',
+        background: '#fff',
+        borderRadius: '14px',
+        boxShadow: '0 4px 24px rgba(44,62,80,0.10)',
+        padding: '24px 20px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '12px',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <input
+          placeholder="Company Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ padding: '12px', borderRadius: '8px', border: '1px solid #1565c0', fontSize: '15px', minWidth: '220px', flex: '1 1 220px' }}
+        />
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ padding: '8px', borderRadius: '8px', border: '1px solid #1565c0', fontSize: '15px', minWidth: '180px', flex: '1 1 180px' }}
+        />
+        {imagePreview && (
+          <img src={imagePreview} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', border: '1px solid #ccc', borderRadius: 8, marginRight: 10, verticalAlign: 'middle' }} />
+        )}
+        {uploading && <span>Uploading...</span>}
+        <button onClick={handleAdd} style={{
+          padding: '12px 24px', background: editId ? '#fbc02d' : '#1565c0', color: '#fff',
+          border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '15px', minWidth: '140px', flex: '0 0 140px', boxShadow: '0 2px 8px #1565c033'
+        }}>{editId ? 'Update Company' : 'Add Company'}</button>
+        {editId && (
+          <button onClick={() => { setEditId(null); setName(''); setImage(''); setImagePreview(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+            style={{ padding: '12px 24px', background: '#bdbdbd', color: '#333', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '15px', minWidth: '100px', flex: '0 0 100px' }}>
+            Cancel
+          </button>
+        )}
+      </div>
       <div
         style={{
           display: 'grid',
@@ -132,7 +150,7 @@ const Companies = () => {
           alignItems: 'start',
         }}
       >
-        {companies.map(c => {
+        {companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => {
           let imageUrl = c.image;
           if (imageUrl && imageUrl.startsWith('/uploads/')) {
             imageUrl = `http://localhost:5000${imageUrl}`;

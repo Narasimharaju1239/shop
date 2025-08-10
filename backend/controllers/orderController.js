@@ -20,16 +20,16 @@ exports.placeOrder = async (req, res, next) => {
         const quantity = item.quantity || 1;
         const basePrice = parseFloat(product.price) || 0;
         const offer = parseFloat(product.offer) || 0;
-        
         // Calculate final price with offer
         const finalPrice = offer > 0 ? Math.round(basePrice * (1 - offer / 100)) : basePrice;
-        
         return {
           name: product.name || 'Product',
           price: finalPrice,
           quantity: quantity,
           productId: product._id,
-          offer: offer
+          offer: offer,
+          gst: product.gst ?? 0,
+          hsnCode: product.hsnCode ?? ''
         };
       } else {
         // Direct order format: { name: string, price: number, quantity: number }
@@ -38,7 +38,9 @@ exports.placeOrder = async (req, res, next) => {
           price: parseFloat(item.price) || 0,
           quantity: item.quantity || 1,
           productId: item.productId || item._id,
-          offer: parseFloat(item.offer) || 0
+          offer: parseFloat(item.offer) || 0,
+          gst: item.gst ?? 0,
+          hsnCode: item.hsnCode ?? ''
         };
       }
     });
@@ -86,6 +88,8 @@ exports.placeOrder = async (req, res, next) => {
               <td style="padding: 10px; color: #333;">${item.name}</td>
               <td style="padding: 10px; text-align: center; color: #666;">₹${item.price.toLocaleString('en-IN')}</td>
               <td style="padding: 10px; text-align: center; color: #666;">${item.quantity}</td>
+              <td style="padding: 10px; text-align: center; color: #666;">${item.gst !== undefined && item.gst !== null ? item.gst + '%' : '-'}</td>
+              <td style="padding: 10px; text-align: center; color: #666;">${item.hsnCode || '-'}</td>
               <td style="padding: 10px; text-align: center; color: #333; font-weight: bold;">₹${Math.round(itemTotal).toLocaleString('en-IN')}</td>
             </tr>
           `;
@@ -174,13 +178,15 @@ exports.placeOrder = async (req, res, next) => {
                         <th style="padding: 12px; text-align: left; color: #333; font-weight: 600;">Product</th>
                         <th style="padding: 12px; text-align: center; color: #333; font-weight: 600;">Price</th>
                         <th style="padding: 12px; text-align: center; color: #333; font-weight: 600;">Qty</th>
+                        <th style="padding: 12px; text-align: center; color: #333; font-weight: 600;">GST (%)</th>
+                        <th style="padding: 12px; text-align: center; color: #333; font-weight: 600;">HSN Code</th>
                         <th style="padding: 12px; text-align: center; color: #333; font-weight: 600;">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       ${itemsSummary}
                       <tr style="background: #f5f5f5; font-weight: bold;">
-                        <td colspan="3" style="padding: 15px; text-align: right; color: #333; font-size: 16px;">Grand Total:</td>
+                        <td colspan="5" style="padding: 15px; text-align: right; color: #333; font-size: 16px;">Grand Total:</td>
                         <td style="padding: 15px; text-align: center; color: #4caf50; font-size: 18px; font-weight: bold;">₹${Math.round(totalPrice).toLocaleString('en-IN')}</td>
                       </tr>
                     </tbody>
@@ -373,7 +379,7 @@ exports.placeOrder = async (req, res, next) => {
 
 exports.getMyOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find({ user: req.user._id });
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
     next(err);
@@ -382,7 +388,7 @@ exports.getMyOrders = async (req, res, next) => {
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const orders = await Order.find().populate('user', 'name email');
+    const orders = await Order.find().populate('user', 'name email').sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
     next(err);

@@ -323,26 +323,25 @@ const Checkout = () => {
             
             if (payuResponse.data.success) {
               const { paymentData } = payuResponse.data;
-              
+
               // Create a form and submit to PayU
               const form = document.createElement('form');
               form.method = 'POST';
-              form.action = paymentData.action;
-              
+              form.action = paymentData.action || paymentData.paymentUrl;
+
               // Add all PayU parameters as hidden inputs
-              Object.keys(paymentData.params).forEach(key => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = paymentData.params[key];
-                form.appendChild(input);
+              Object.keys(paymentData).forEach(key => {
+                if (key !== 'action' && key !== 'success' && key !== 'paymentUrl') {
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = key;
+                  input.value = paymentData[key];
+                  form.appendChild(input);
+                }
               });
-              
-              // Add form to document and submit
+
               document.body.appendChild(form);
               form.submit();
-              
-              // Remove form after submission
               document.body.removeChild(form);
             } else {
               throw new Error(payuResponse.data.message || 'PayU initialization failed');
@@ -828,6 +827,11 @@ const Checkout = () => {
               <option value="UPI">📱 UPI Payment</option>
               <option value="PayU">💳 PayU Gateway (Card/UPI/Wallet)</option>
             </select>
+            {details.paymentMethod === 'PayU' && (
+              <div style={{ marginTop: '10px', color: currentTheme.primary, fontWeight: '500', fontSize: '15px' }}>
+                You will be redirected to PayU secure payment gateway. Supports Card, UPI, Net Banking, Wallet.
+              </div>
+            )}
 
             {/* UPI App Selection - Show only when UPI is selected */}
             {details.paymentMethod === 'UPI' && (
@@ -972,6 +976,8 @@ const Checkout = () => {
               '⏳ Processing...'
             ) : details.paymentMethod === 'UPI' ? (
               `🛒 Pay with ${details.upiApp} - ₹${Math.round(calculateTotal()).toLocaleString('en-IN')}`
+            ) : details.paymentMethod === 'PayU' ? (
+              `💳 Pay with PayU - ₹${Math.round(calculateTotal()).toLocaleString('en-IN')}`
             ) : (
               `🛒 Place Order - ₹${Math.round(calculateTotal()).toLocaleString('en-IN')}`
             )}

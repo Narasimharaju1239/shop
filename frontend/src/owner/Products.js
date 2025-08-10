@@ -38,6 +38,7 @@ function getCroppedImg(imageSrc, croppedAreaPixels, zoom, aspect = 1) {
 const Products = () => {
   const { currentTheme } = useTheme();
   const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     name: '', price: '', offer: '', companyId: '', image: '', description: '', imagePreview: ''
   });
@@ -176,10 +177,21 @@ const Products = () => {
           color: currentTheme.text,
           marginBottom: '24px',
           fontSize: '28px',
-          fontWeight: '700'
+          fontWeight: '700',
+          textAlign: 'center'
         }}>
           Manage Products
         </h2>
+        {/* Search Bar */}
+        <div style={{ maxWidth: 400, margin: '0 auto 24px auto', textAlign: 'center' }}>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search products by name..."
+            style={{ padding: '12px', width: '100%', borderRadius: 8, border: `1px solid ${currentTheme.primary}`, fontSize: 16 }}
+          />
+        </div>
         {companyIdFilter && (
           <div style={{ 
             marginBottom: '20px',
@@ -241,6 +253,39 @@ const Products = () => {
             }} 
           />
           <input 
+            placeholder="GST (%)" 
+            type="number" 
+            value={form.gst || ''} 
+            onChange={e => setForm({ ...form, gst: e.target.value })} 
+            required
+            style={{ 
+              padding: '12px', 
+              borderRadius: '8px',
+              border: `1px solid ${currentTheme.border}`,
+              background: currentTheme.background,
+              color: currentTheme.text,
+              fontSize: '14px',
+              width: '100px',
+              flex: '0 0 100px'
+            }} 
+          />
+          <input 
+            placeholder="HSN Code" 
+            value={form.hsnCode || ''} 
+            onChange={e => setForm({ ...form, hsnCode: e.target.value })} 
+            required
+            style={{ 
+              padding: '12px', 
+              borderRadius: '8px',
+              border: `1px solid ${currentTheme.border}`,
+              background: currentTheme.background,
+              color: currentTheme.text,
+              fontSize: '14px',
+              width: '120px',
+              flex: '0 0 120px'
+            }} 
+          />
+          <input 
             placeholder="Price" 
             type="number" 
             value={form.price} 
@@ -272,30 +317,18 @@ const Products = () => {
               flex: '0 0 100px'
             }} 
           />
-          <input 
-            placeholder="Image URL" 
-            value={form.image} 
-            onChange={(e) => setForm({ ...form, image: e.target.value, imagePreview: '' })} 
-            style={{ 
-              padding: '12px', 
-              borderRadius: '8px',
-              border: `1px solid ${currentTheme.border}`,
-              background: currentTheme.background,
-              color: currentTheme.text,
-              fontSize: '14px',
-              minWidth: '250px',
-              flex: '1 1 250px'
-            }} 
-          />
+          {/* Removed Image URL input, only file upload is shown */}
           <input 
             type="file" 
             accept="image/*" 
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
+              // Remove imageFileName, just set preview
               const reader = new FileReader();
               reader.onload = (ev) => {
                 setCropModal({ open: true, src: ev.target.result, file });
+                setForm(f => ({ ...f, imagePreview: ev.target.result }));
               };
               reader.readAsDataURL(file);
             }} 
@@ -310,6 +343,13 @@ const Products = () => {
               flex: '1 1 200px'
             }} 
           />
+          {form.imagePreview && (
+            <img 
+              src={form.imagePreview} 
+              alt="Selected" 
+              style={{ marginLeft: 12, width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: `1px solid ${currentTheme.border}` }} 
+            />
+          )}
       {/* Cropper Modal */}
       {cropModal.open && createPortal(
         <div style={{ position: 'fixed', zIndex: 9999, top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -389,22 +429,7 @@ const Products = () => {
         </div>,
         document.body
       )}
-          {/* Image preview for product upload */}
-          {form.imagePreview && (
-            <img 
-              src={form.imagePreview} 
-              alt="Preview" 
-              style={{ 
-                width: '80px', 
-                height: '80px', 
-                objectFit: 'cover', 
-                border: `1px solid ${currentTheme.border}`, 
-                borderRadius: '8px', 
-                marginRight: '12px', 
-                verticalAlign: 'middle' 
-              }} 
-            />
-          )}
+          {/* Removed image preview, only file input is shown */}
           <select 
             value={form.companyId} 
             onChange={(e) => setForm({ ...form, companyId: e.target.value })} 
@@ -440,7 +465,7 @@ const Products = () => {
               boxShadow: `0 2px 8px ${currentTheme.shadow}`
             }}
           >
-            {editId ? 'Update Product' : 'Add Product'}
+            {editId ? 'Update Product' : 'Add'}
           </button>
           {editId && (
             <button 
@@ -489,7 +514,7 @@ const Products = () => {
             gap: '24px'
           }}
         >
-          {products.map(p => {
+          {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => {
             const hasOffer = p.offer && !isNaN(Number(p.offer)) && Number(p.offer) > 0;
             const price = Number(p.price);
             const offer = Number(p.offer) || 0;
@@ -586,44 +611,40 @@ const Products = () => {
                 }}>
                   {p.description}
                 </p>
-                <button 
-                  onClick={() => handleEdit(p)} 
-                  style={{ 
-                    position: 'absolute', 
-                    top: '16px', 
-                    right: '60px', 
-                    background: '#fbc02d', 
-                    color: '#333', 
-                    border: 'none', 
-                    borderRadius: '6px', 
-                    padding: '6px 10px', 
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  Edit
-                </button>
-                <button 
-                  onClick={() => handleDelete(p._id)} 
-                  style={{ 
-                    position: 'absolute', 
-                    top: '16px', 
-                    right: '16px', 
-                    background: '#e53935', 
-                    color: '#fff', 
-                    border: 'none', 
-                    borderRadius: '6px', 
-                    padding: '6px 10px', 
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '12px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  Delete
-                </button>
+                <div style={{ display: 'flex', gap: 16, position: 'absolute', top: 16, right: 16 }}>
+                  <button 
+                    onClick={() => handleEdit(p)} 
+                    style={{ 
+                      background: '#fbc02d', 
+                      color: '#333', 
+                      border: 'none', 
+                      borderRadius: '6px', 
+                      padding: '6px 16px', 
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '12px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(p._id)} 
+                    style={{ 
+                      background: '#e53935', 
+                      color: '#fff', 
+                      border: 'none', 
+                      borderRadius: '6px', 
+                      padding: '6px 16px', 
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '12px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             );
           })}

@@ -9,6 +9,8 @@ const AddProduct = () => {
     details: '', // New field for product details
     price: '',
     offer: '',
+    gst: '',
+    hsnCode: '',
     image: null
   });
 
@@ -27,7 +29,7 @@ const AddProduct = () => {
     try {
       await API.post('/products', data); // Adjust endpoint if needed
       toast.success('Product added!');
-      setForm({ name: '', description: '', details: '', price: '', offer: '', image: null });
+      setForm({ name: '', description: '', details: '', price: '', offer: '', gst: '', hsnCode: '', image: null });
     } catch {
       toast.error('Failed to add product');
     }
@@ -41,6 +43,8 @@ const AddProduct = () => {
       <textarea name="details" value={form.details} onChange={handleChange} placeholder="Product Details" style={{ width: '100%', marginBottom: 10 }} />
       <input name="price" type="number" value={form.price} onChange={handleChange} placeholder="Price" required style={{ width: '100%', marginBottom: 10 }} />
       <input name="offer" type="number" value={form.offer} onChange={handleChange} placeholder="Offer (%)" style={{ width: '100%', marginBottom: 10 }} />
+      <input name="gst" type="number" value={form.gst} onChange={handleChange} placeholder="GST (%)" style={{ width: '100%', marginBottom: 10 }} />
+      <input name="hsnCode" value={form.hsnCode} onChange={handleChange} placeholder="HSN Code" style={{ width: '100%', marginBottom: 10 }} />
       <input name="image" type="file" accept="image/*" onChange={handleChange} style={{ width: '100%', marginBottom: 10 }} />
       <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#00796b', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Add Product</button>
     </form>

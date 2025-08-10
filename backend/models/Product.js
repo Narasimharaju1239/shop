@@ -7,6 +7,8 @@ const productSchema = new mongoose.Schema({
   image: { type: String },
   description: { type: String },
   details: { type: String }, // New field for product details
+  gst: { type: Number, default: 0 }, // GST percentage
+  hsnCode: { type: String }, // HSN code
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Company',
