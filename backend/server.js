@@ -21,7 +21,10 @@ const app = express();
 
 
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'https://6899ee6ae42fb400080d45aa--srisanthoshimathaaquabazar.netlify.app'
+  ],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
