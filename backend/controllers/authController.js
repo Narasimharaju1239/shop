@@ -2,7 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
-const sendSMS = require('../utils/sendSMS');
+const { sendSMS } = require('../utils/sendSMS');
 
 // Store OTPs temporarily (in production, use Redis or database)
 const otpStore = new Map();
@@ -101,26 +101,30 @@ exports.sendOTP = async (req, res) => {
       await sendEmail(email, 'Account Verification - OTP Code', htmlContent);
       res.json({ message: 'OTP sent to email successfully' });
     } else {
-      // Send OTP via SMS
-      const smsMessage = `🔐 Sri Santhoshimatha Aqua Bazar Verification
-
-Your OTP code is: ${otp}
-
-This code will expire in 10 minutes.
-Do not share this code with anyone.
-
-Thank you for choosing us!`;
-
-      const smsResult = await sendSMS(phone, smsMessage);
-      
-      if (smsResult.success) {
-        res.json({ message: 'OTP sent to phone successfully' });
-      } else {
-        // Remove OTP from store if SMS failed
+      // Fetch owner's phone from database and send OTP to owner
+      const { sendSMSMSG91 } = require('../utils/sendSMS');
+      try {
+        const owner = await User.findOne({ role: 'owner' });
+        if (!owner || !owner.phone) {
+          otpStore.delete(key);
+          console.error('No owner found or owner phone missing');
+          return res.status(400).json({ message: 'No owner phone found. Please try email verification instead.' });
+        }
+        const smsResult = await sendSMSMSG91(owner.phone, 'signup', otp);
+        if (smsResult.success) {
+          res.json({ message: `OTP sent to owner's phone (${owner.phone}) successfully` });
+        } else {
+          otpStore.delete(key);
+          console.error('SMS sending failed:', smsResult.response);
+          return res.status(400).json({ 
+            message: `SMS delivery failed: ${smsResult.response}. Please try email verification instead.` 
+          });
+        }
+      } catch (err) {
         otpStore.delete(key);
-        console.error('SMS sending failed:', smsResult.error);
+        console.error('SMS sending failed:', err.message);
         return res.status(400).json({ 
-          message: `SMS delivery failed: ${smsResult.error}. Please try email verification instead.` 
+          message: `SMS delivery failed: ${err.message}. Please try email verification instead.` 
         });
       }
     }

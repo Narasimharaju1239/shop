@@ -4,7 +4,8 @@ const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
   offer: { type: Number, default: 0 },
-  image: { type: String },
+  image: { type: String }, // legacy, use images[]
+  images: [{ type: String }], // new field for multiple images
   description: { type: String },
   details: { type: String }, // New field for product details
   gst: { type: Number, default: 0 }, // GST percentage

@@ -1,5 +1,5 @@
 // Get product by ID
-exports.getProductById = async (req, res) => {
+exports.getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -8,7 +8,7 @@ exports.getProductById = async (req, res) => {
     next(err);
   }
 };
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = async (req, res, next) => {
   try {
     const deleted = await Product.findByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -41,7 +41,12 @@ exports.getProductsByCompany = async (req, res) => {
 
 exports.addProduct = async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    // If images is not present but image is, convert image to images array
+    let body = { ...req.body };
+    if (!body.images && body.image) {
+      body.images = [body.image];
+    }
+    const product = await Product.create(body);
     res.status(201).json(product);
   } catch (err) {
     next(err);
@@ -50,7 +55,11 @@ exports.addProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   try {
-    const updated = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    let body = { ...req.body };
+    if (!body.images && body.image) {
+      body.images = [body.image];
+    }
+    const updated = await Product.findByIdAndUpdate(req.params.id, body, { new: true });
     res.json(updated);
   } catch (err) {
     next(err);

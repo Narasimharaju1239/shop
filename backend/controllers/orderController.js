@@ -370,6 +370,18 @@ exports.placeOrder = async (req, res, next) => {
       // Don't fail the order placement if email fails
     }
 
+    // Send thank you SMS to customer after order placed
+    try {
+      const { sendSMSMSG91 } = require('../utils/sendSMS');
+      if (shipping?.phone) {
+        await sendSMSMSG91(shipping.phone, 'order');
+        console.log(`✅ SMS sent to customer: ${shipping.phone}`);
+      }
+    } catch (smsError) {
+      console.error('Failed to send SMS to customer:', smsError);
+    }
+
+    // Send WhatsApp invoice to customer (after all template literals are closed)
     res.status(201).json(order);
   } catch (err) {
     console.error('Error placing order:', err);

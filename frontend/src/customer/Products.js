@@ -8,11 +8,14 @@ import { useTheme } from '../context/ThemeContext';
 
 const Products = () => {
   const [products, setProducts] = useState([]);
+  const [search, setSearch] = useState('');
   const [quantities, setQuantities] = useState({});
   const { setCartItems } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const { currentTheme } = useTheme();
   const navigate = useNavigate();
+    // Carousel state for each product
+    const [carouselIndexes, setCarouselIndexes] = useState({});
 
   useEffect(() => {
     API.get('/products')
@@ -27,6 +30,22 @@ const Products = () => {
       })
       .catch(() => toast.error('Failed to fetch products'));
   }, []);
+
+    // Carousel auto-slide effect
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setCarouselIndexes(prev => {
+          const updated = { ...prev };
+          products.forEach(p => {
+            if (p.images && p.images.length > 1) {
+              updated[p._id] = ((prev[p._id] || 0) + 1) % p.images.length;
+            }
+          });
+          return updated;
+        });
+      }, 3000); // 3 seconds
+      return () => clearInterval(interval);
+    }, [products]);
 
   const updateQuantity = (productId, change) => {
     setQuantities(prev => ({
@@ -171,8 +190,24 @@ const Products = () => {
             fontSize: 32 
           }}
         >
-          All Products
+         Products
         </h2>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search products..."
+          style={{
+            margin: '16px auto',
+            display: 'block',
+            padding: '8px 12px',
+            borderRadius: 6,
+            border: '1px solid #ccc',
+            fontSize: 16,
+            width: '100%',
+            maxWidth: 400
+          }}
+        />
         
         <div 
           className="products-grid"
@@ -186,7 +221,7 @@ const Products = () => {
             margin: '0'
           }}
         >
-        {products.map(p => (
+  {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => (
           <div
             key={p._id}
             className="product-card"
@@ -222,21 +257,47 @@ const Products = () => {
             }}
           >
             <div>
-              <img
-                className="product-image"
-                src={p.image ? (p.image.startsWith('/uploads/') ? `http://localhost:5000${p.image}` : p.image) : '/no-image.png'}
-                alt={p.name}
-                style={{ 
-                  width: '100%', 
-                  height: '180px', 
-                  objectFit: 'cover', 
-                  borderRadius: '8px', 
-                  marginBottom: 14, 
-                  boxShadow: `0 2px 8px ${currentTheme.shadow}` 
-                }}
-                onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
-              />
-              <h4 
+              {/* Image Carousel */}
+              {p.images && p.images.length > 0 ? (
+                <div style={{ position: 'relative', width: 160, height: 250, margin: '0 auto 0 auto', overflow: 'hidden', borderRadius: 12, border: `1px solid ${currentTheme.border}`, background: '#fff' }}>
+                  <img
+                    className="product-image"
+                    src={p.images[(carouselIndexes[p._id] || 0)].startsWith('/uploads/') ? `http://localhost:5000${p.images[(carouselIndexes[p._id] || 0)]}` : p.images[(carouselIndexes[p._id] || 0)]}
+                    alt={p.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 12, boxShadow: `0 2px 8px ${currentTheme.shadow}` }}
+                    onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
+                  />
+                  {/* Carousel dots */}
+                  {p.images.length > 1 && (
+                    <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+                      {p.images.map((_, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: (carouselIndexes[p._id] || 0) === idx ? currentTheme.primary : '#ccc',
+                            display: 'inline-block',
+                            cursor: 'pointer',
+                            border: '1px solid #fff'
+                          }}
+                          onClick={() => setCarouselIndexes(prev => ({ ...prev, [p._id]: idx }))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <img
+                  className="product-image"
+                  src={p.image ? (p.image.startsWith('/uploads/') ? `http://localhost:5000${p.image}` : p.image) : '/no-image.png'}
+                  alt={p.name}
+                  style={{ width: 160, height: 250, objectFit: 'contain', borderRadius: 12, boxShadow: `0 2px 8px ${currentTheme.shadow}`, border: `1px solid ${currentTheme.border}`, background: '#fff', marginBottom: 0 }}
+                  onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
+                />
+              )}
+              <h4
                 className="product-name"
                 style={{ 
                   fontWeight: 700, 

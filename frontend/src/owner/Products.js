@@ -40,10 +40,12 @@ const Products = () => {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
-    name: '', price: '', offer: '', companyId: '', image: '', description: '', imagePreview: ''
+  name: '', price: '', offer: '', companyId: '', images: [], description: '', imagePreviews: []
   });
   const [companies, setCompanies] = useState([]);
   const [editId, setEditId] = useState(null);
+    // Carousel state for each product
+    const [carouselIndexes, setCarouselIndexes] = useState({});
   // For cropping modal
   const [cropModal, setCropModal] = useState({ open: false, src: '', file: null });
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -80,14 +82,15 @@ const Products = () => {
       const payload = {
         ...form,
         price: Number(form.price),
-        offer: form.offer ? Number(form.offer) : 0
+        offer: form.offer ? Number(form.offer) : 0,
+        images: form.images
       };
       if (editId) {
         await API.put(`/products/${editId}`, payload);
       } else {
         await API.post('/products', payload);
       }
-      setForm({ name: '', price: '', offer: '', companyId: '', image: '', description: '', imagePreview: '' });
+      setForm({ name: '', price: '', offer: '', companyId: '', images: [], description: '', imagePreviews: [] });
       setEditId(null);
       fetchProducts();
     } catch (err) {
@@ -108,9 +111,9 @@ const Products = () => {
       price: product.price,
       offer: product.offer,
       companyId: product.companyId?._id || product.companyId,
-      image: product.image,
+      images: product.images || [],
       description: product.description || '',
-      imagePreview: ''
+      imagePreviews: []
     });
   };
 
@@ -118,6 +121,22 @@ const Products = () => {
     fetchProducts();
     fetchCompanies();
   }, [fetchProducts, fetchCompanies]);
+
+  // Carousel auto-slide effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCarouselIndexes(prev => {
+        const updated = { ...prev };
+        products.forEach(p => {
+          if (p.images && p.images.length > 1) {
+            updated[p._id] = ((prev[p._id] || 0) + 1) % p.images.length;
+          }
+        });
+        return updated;
+      });
+    }, 3000); // 3 seconds
+    return () => clearInterval(interval);
+  }, [products]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
@@ -252,6 +271,24 @@ const Products = () => {
               flex: '1 1 200px'
             }} 
           />
+          <textarea
+            placeholder="Product Details (features, specs, etc.)"
+            value={form.details}
+            onChange={e => setForm({ ...form, details: e.target.value })}
+            style={{
+              padding: '12px',
+              borderRadius: '8px',
+              border: `1px solid ${currentTheme.border}`,
+              background: currentTheme.background,
+              color: currentTheme.text,
+              fontSize: '14px',
+              minWidth: '200px',
+              flex: '2 1 400px',
+              minHeight: '60px',
+              resize: 'vertical',
+              marginBottom: '8px'
+            }}
+          />
           <input 
             placeholder="GST (%)" 
             type="number" 
@@ -321,16 +358,33 @@ const Products = () => {
           <input 
             type="file" 
             accept="image/*" 
+            multiple="5"
             onChange={async (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
-              // Remove imageFileName, just set preview
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                setCropModal({ open: true, src: ev.target.result, file });
-                setForm(f => ({ ...f, imagePreview: ev.target.result }));
-              };
-              reader.readAsDataURL(file);
+              const files = Array.from(e.target.files).slice(0, 4);
+              const previews = [];
+              const uploadedImages = [];
+              for (const file of files) {
+                const reader = new FileReader();
+                await new Promise(resolve => {
+                  reader.onload = (ev) => {
+                    previews.push(ev.target.result);
+                    resolve();
+                  };
+                  reader.readAsDataURL(file);
+                });
+                // Upload each image
+                const formData = new FormData();
+                formData.append('image', file);
+                try {
+                  const res = await API.post('/products/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                  });
+                  uploadedImages.push(res.data.imageUrl);
+                } catch {
+                  toast.error('Image upload failed.');
+                }
+              }
+              setForm(f => ({ ...f, images: uploadedImages, imagePreviews: previews }));
             }} 
             style={{ 
               padding: '8px', 
@@ -343,12 +397,17 @@ const Products = () => {
               flex: '1 1 200px'
             }} 
           />
-          {form.imagePreview && (
-            <img 
-              src={form.imagePreview} 
-              alt="Selected" 
-              style={{ marginLeft: 12, width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: `1px solid ${currentTheme.border}` }} 
-            />
+          {form.imagePreviews && form.imagePreviews.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, marginLeft: 12 }}>
+              {form.imagePreviews.map((src, idx) => (
+                <img 
+                  key={idx}
+                  src={src}
+                  alt={`Selected ${idx+1}`}
+                  style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: `1px solid ${currentTheme.border}` }} 
+                />
+              ))}
+            </div>
           )}
       {/* Cropper Modal */}
       {cropModal.open && createPortal(
@@ -541,26 +600,42 @@ const Products = () => {
                   e.currentTarget.style.boxShadow = `0 4px 12px ${currentTheme.shadow}`;
                 }}
               >
-                {(() => {
-                  let imgSrc = p.image;
-                  if (imgSrc && imgSrc.startsWith('/uploads/')) {
-                    imgSrc = 'http://localhost:5000' + imgSrc;
-                  }
-                  return (
-                    <img 
-                      src={imgSrc} 
-                      alt={p.name} 
-                      style={{ 
-                        width: '100%', 
-                        height: '200px', 
-                        objectFit: 'cover', 
-                        borderRadius: '8px', 
-                        marginBottom: '16px',
-                        border: `1px solid ${currentTheme.border}`
-                      }} 
+                  {/* Image Carousel */}
+                  {p.images && p.images.length > 0 ? (
+                    <div style={{ position: 'relative', width: '100%', height: '200px', marginBottom: 16, overflow: 'hidden', borderRadius: '8px', border: `1px solid ${currentTheme.border}` }}>
+                      <img
+                        src={p.images[(carouselIndexes[p._id] || 0)].startsWith('/uploads/') ? 'http://localhost:5000' + p.images[(carouselIndexes[p._id] || 0)] : p.images[(carouselIndexes[p._id] || 0)]}
+                        alt={p.name}
+                        style={{ width: '100%', height: '200px', objectFit: 'contain', borderRadius: '8px', transition: 'opacity 0.5s' }}
+                      />
+                      {/* Carousel dots */}
+                      {p.images.length > 1 && (
+                        <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+                          {p.images.map((_, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: (carouselIndexes[p._id] || 0) === idx ? currentTheme.primary : '#ccc',
+                                display: 'inline-block',
+                                cursor: 'pointer',
+                                border: '1px solid #fff'
+                              }}
+                              onClick={() => setCarouselIndexes(prev => ({ ...prev, [p._id]: idx }))}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <img
+                      src={p.image && p.image.startsWith('/uploads/') ? 'http://localhost:5000' + p.image : p.image}
+                      alt={p.name}
+                      style={{ width: '100%', height: '200px', objectFit: 'contain', borderRadius: '8px', marginBottom: '16px', border: `1px solid ${currentTheme.border}` }}
                     />
-                  );
-                })()}
+                  )}
                 <h4 style={{ 
                   margin: '0 0 12px 0', 
                   fontWeight: '700',

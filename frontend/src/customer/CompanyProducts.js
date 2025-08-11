@@ -9,6 +9,8 @@ const CompanyProducts = () => {
   const { companyId } = useParams();
   const [products, setProducts] = useState([]);
   const { addToCart } = useContext(CartContext);
+    // Carousel state for each product
+    const [carouselIndexes, setCarouselIndexes] = useState({});
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -22,6 +24,22 @@ const CompanyProducts = () => {
     fetchProducts();
   }, [companyId]);
 
+    // Carousel auto-slide effect
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setCarouselIndexes(prev => {
+          const updated = { ...prev };
+          products.forEach(p => {
+            if (p.images && p.images.length > 1) {
+              updated[p._id] = ((prev[p._id] || 0) + 1) % p.images.length;
+            }
+          });
+          return updated;
+        });
+      }, 3000); // 3 seconds
+      return () => clearInterval(interval);
+    }, [products]);
+
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ textAlign: 'center' }}>Products</h2>
@@ -30,26 +48,49 @@ const CompanyProducts = () => {
         gap: '20px', marginTop: '20px'
       }}>
         {products.map(p => {
-          // Debug: log the image URL being used
-          let imageUrl;
-          if (p.image && typeof p.image === 'string' && p.image.startsWith('/uploads/')) {
-            imageUrl = `http://localhost:5000${p.image}`;
-          } else if (p.image && typeof p.image === 'string' && p.image.trim() !== '') {
-            imageUrl = p.image;
-          } else {
-            imageUrl = '/no-image.png';
-          }
           return (
             <div key={p._id} style={{
               border: '1px solid #ccc', borderRadius: '10px', padding: '15px',
               textAlign: 'center', background: '#fff'
             }}>
-              <img
-                src={imageUrl}
-                alt={p.name}
-                style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px' }}
-                onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
-              />
+              {/* Image Carousel */}
+              {p.images && Array.isArray(p.images) && p.images.length > 0 ? (
+                <div style={{ position: 'relative', width: '100%', height: '150px', marginBottom: 8, overflow: 'hidden', borderRadius: '8px', background: '#fff' }}>
+                  <img
+                    src={p.images[(carouselIndexes[p._id] || 0)].startsWith('/uploads/') ? `http://localhost:5000${p.images[(carouselIndexes[p._id] || 0)]}` : p.images[(carouselIndexes[p._id] || 0)]}
+                    alt={p.name}
+                    style={{ width: '100%', height: '150px', objectFit: 'contain', borderRadius: '8px', background: '#fff' }}
+                    onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
+                  />
+                  {/* Carousel dots */}
+                  {p.images.length > 1 && (
+                    <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
+                      {p.images.map((_, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            background: (carouselIndexes[p._id] || 0) === idx ? '#00796b' : '#ccc',
+                            display: 'inline-block',
+                            cursor: 'pointer',
+                            border: '1px solid #fff'
+                          }}
+                          onClick={() => setCarouselIndexes(prev => ({ ...prev, [p._id]: idx }))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <img
+                  src={p.image && typeof p.image === 'string' && p.image.startsWith('/uploads/') ? `http://localhost:5000${p.image}` : (p.image && typeof p.image === 'string' && p.image.trim() !== '' ? p.image : '/no-image.png')}
+                  alt={p.name}
+                  style={{ width: '100%', height: '150px', objectFit: 'contain', borderRadius: '8px', background: '#fff' }}
+                  onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
+                />
+              )}
               <h4>{p.name}</h4>
               {/* Discounted price block */}
               {p.offer ? (

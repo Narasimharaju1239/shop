@@ -44,66 +44,79 @@ const sendSMSTextLocal = async (phoneNumber, message) => {
   }
 };
 
-// MSG91 SMS implementation (Indian service with good delivery rates)
-const sendSMSMSG91 = async (phoneNumber, message) => {
-  try {
-    const authKey = process.env.MSG91_AUTH_KEY;
-    const senderId = process.env.MSG91_SENDER_ID || 'MSGIND';
-    
-    console.log(`📞 Attempting SMS to: ${phoneNumber}`);
-    console.log(`🔑 Using Auth Key: ${authKey?.substring(0, 10)}...`);
-    
-    // Format phone number
-    let formattedPhone = phoneNumber.replace(/\D/g, '');
-    if (!formattedPhone.startsWith('91') && formattedPhone.length === 10) {
-      formattedPhone = '91' + formattedPhone;
-    }
-    
-    console.log(`📱 Formatted phone: ${formattedPhone}`);
+// MSG91 SMS implementation
+const sendSMSMSG91 = async (phoneNumber, messageType = 'order', otp = null) => {
+  const axios = require('axios');
+  const MSG91_API_KEY = process.env.MSG91_API_KEY || 'YOUR_MSG91_API_KEY';
+  const SENDER_ID = process.env.MSG91_SENDER_ID || 'aquabz';
+  const TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID;
 
-    // Use MSG91 simple SMS API with promotional route (more reliable for new accounts)
-    const url = `https://api.msg91.com/api/sendhttp.php?authkey=${authKey}&mobiles=${formattedPhone}&message=${encodeURIComponent(message)}&sender=${senderId}&route=1`;
-    
-    console.log(`🌐 API URL: ${url.replace(authKey, '[AUTH_KEY_HIDDEN]')}`);
+  // Format phone number - ensure it's 10 digits
+  let formattedPhone = phoneNumber.replace(/\D/g, '');
+  if (formattedPhone.startsWith('91')) {
+    formattedPhone = formattedPhone.substring(2);
+  }
+  if (formattedPhone.startsWith('+91')) {
+    formattedPhone = formattedPhone.substring(3);
+  }
 
-    const response = await fetch(url, { method: 'GET' });
-    const result = await response.text();
-    
-    console.log(`📨 MSG91 Response: ${result}`);
-    console.log(`📊 Response Status: ${response.status}`);
-    
-    // Check various success conditions
-    if (result.includes('success') || 
-        /^\d+$/.test(result.trim()) || 
-        result.includes('Message sent successfully') ||
-        response.status === 200) {
-      console.log(`✅ SMS sent successfully via MSG91 to ${formattedPhone}`);
-      console.log(`🎯 MSG91 Response Details: ${result}`);
-      return { success: true, provider: 'msg91', response: result };
-    } else {
-      // Log detailed error information
-      console.error(`❌ MSG91 SMS Failed:`);
-      console.error(`   Phone: ${formattedPhone}`);
-      console.error(`   Response: ${result}`);
-      console.error(`   Status: ${response.status}`);
-      
-      // Check for common MSG91 errors
-      if (result.includes('insufficient_balance')) {
-        throw new Error('MSG91 account has insufficient balance. Please recharge your account.');
-      } else if (result.includes('invalid_authkey')) {
-        throw new Error('MSG91 Auth Key is invalid. Please check your credentials.');
-      } else if (result.includes('invalid_numbers')) {
-        throw new Error('Phone number format is invalid for MSG91.');
-      } else if (result.includes('invalid_sender')) {
-        throw new Error('Sender ID is not approved. Using default sender.');
-      } else {
-        throw new Error(`MSG91 API Error: ${result}`);
+  let message = '';
+  let templateId = undefined;
+  let variables = undefined;
+
+  if (messageType === 'order') {
+    message = 'Order placed successfully! Thanks for logging into Sri Santhoshimatha Aqua Bazar.';
+  } else if (messageType === 'signup' && otp) {
+    // Use DLT template for OTP
+    message = undefined; // MSG91 will use template
+    templateId = TEMPLATE_ID;
+  variables = { otp: otp };
+  } else {
+    message = 'Sri Santhoshimatha Aqua Bazar notification.';
+  }
+
+  const url = 'https://api.msg91.com/api/v2/sendsms';
+  const smsPayload = {
+    sender: SENDER_ID,
+    route: '4',
+    country: '91',
+    sms: [
+      {
+        to: [formattedPhone]
       }
+    ]
+  };
+
+  if (templateId && variables) {
+    smsPayload.sms[0].template_id = templateId;
+    smsPayload.sms[0].variables = variables;
+    smsPayload.sms[0].message = 'OTP'; // Dummy message for MSG91 template API
+  } else if (message) {
+    smsPayload.sms[0].message = message;
+  }
+
+  const headers = {
+    'authkey': MSG91_API_KEY,
+    'Content-Type': 'application/json'
+  };
+
+  try {
+    console.log('MSG91 SMS Payload:', JSON.stringify(smsPayload, null, 2));
+    const response = await axios.post(url, smsPayload, { headers });
+    console.log('MSG91 API Full Response:', JSON.stringify(response.data, null, 2));
+    if (response.data && response.data.type === 'success') {
+      console.log(`✅ SMS sent via MSG91 to ${formattedPhone}`);
+      return { success: true, provider: 'msg91', response: response.data };
+    } else {
+      console.error('MSG91 API Error:', response.data);
+      throw new Error(response.data.message || 'MSG91 SMS failed');
     }
   } catch (error) {
-    console.error('❌ MSG91 SMS failed with error:', error.message);
-    console.error('📋 Full error details:', error);
-    return { success: false, error: error.message };
+    console.error('MSG91 SMS error:', error);
+    if (error.response) {
+      console.error('MSG91 error response:', error.response.data);
+    }
+    throw error;
   }
 };
 
@@ -240,10 +253,14 @@ const sendSMS = async (phoneNumber, message) => {
         break;
       
       case 'msg91':
-        if (process.env.MSG91_AUTH_KEY) {
-          result = await sendSMSMSG91(phoneNumber, message);
+        if (process.env.MSG91_API_KEY) {
+          if (otp) {
+            result = await sendSMSMSG91(phoneNumber, 'signup', otp);
+          } else {
+            result = await sendSMSMSG91(phoneNumber, 'order');
+          }
         } else {
-          console.warn('⚠️ MSG91 auth key not found, falling back to local simulation');
+          console.warn('⚠️ MSG91 API key not found, falling back to local simulation');
           result = await sendSMSLocal(phoneNumber, message);
         }
         break;
@@ -290,4 +307,51 @@ const sendSMS = async (phoneNumber, message) => {
   }
 };
 
-module.exports = sendSMS;
+// MSG91 SMS implementation (alternative version)
+const sendSMSMSG91Alt = async (phoneNumber, message) => {
+  const axios = require('axios');
+  const MSG91_API_KEY = process.env.MSG91_API_KEY || 'YOUR_MSG91_API_KEY'; // Set in .env
+  const SENDER_ID = 'aquabz'; // Use your approved sender ID
+
+  // Format phone number - ensure it's 10 digits
+  let formattedPhone = phoneNumber.replace(/\D/g, '');
+  if (formattedPhone.startsWith('91')) {
+    formattedPhone = formattedPhone.substring(2);
+  }
+  if (formattedPhone.startsWith('+91')) {
+    formattedPhone = formattedPhone.substring(3);
+  }
+
+  const url = 'https://api.msg91.com/api/v2/sendsms';
+  const payload = {
+    sender: SENDER_ID,
+    route: '4', // '4' for transactional, '1' for promotional
+    country: '91',
+    sms: [
+      {
+        message,
+        to: [formattedPhone]
+      }
+    ]
+  };
+
+  const headers = {
+    'authkey': MSG91_API_KEY,
+    'Content-Type': 'application/json'
+  };
+
+  try {
+    const response = await axios.post(url, payload, { headers });
+    if (response.data && response.data.type === 'success') {
+      console.log(`✅ SMS sent via MSG91 to ${formattedPhone}`);
+      return { success: true, provider: 'msg91', response: response.data };
+    } else {
+      throw new Error(response.data.message || 'MSG91 SMS failed');
+    }
+  } catch (error) {
+    console.error('MSG91 SMS error:', error);
+    throw error;
+  }
+};
+
+module.exports = { sendSMSTextLocal, sendSMSMSG91, sendSMS };

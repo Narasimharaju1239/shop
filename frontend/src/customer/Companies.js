@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Companies = () => {
   const [companies, setCompanies] = useState([]);
+    const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,7 +22,23 @@ const Companies = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2 style={{ textAlign: 'center', color: '#00695c' }}>Browse by Companies</h2>
+      <h2 style={{ textAlign: 'center', color: '#00695c' }}>Companies</h2>
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search companies..."
+        style={{
+          margin: '16px auto',
+          display: 'block',
+          padding: '8px 12px',
+          borderRadius: 6,
+          border: '1px solid #ccc',
+          fontSize: 16,
+          width: '100%',
+          maxWidth: 400
+        }}
+      />
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
@@ -29,7 +46,7 @@ const Companies = () => {
         marginTop: '40px',
         alignItems: 'start',
       }}>
-        {companies.map(company => {
+          {(companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))).map(company => {
           let imageUrl = company.image;
           if (imageUrl && imageUrl.startsWith('/uploads/')) {
             imageUrl = `http://localhost:5000${imageUrl}`;

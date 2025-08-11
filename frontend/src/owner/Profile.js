@@ -1,266 +1,515 @@
-
-import React, { useContext, useState, useRef } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Cropper from 'react-easy-crop';
+// Helper to generate default avatar URL from first letter of name or username
+const getDefaultAvatar = (name, username) => {
+  let initial = 'U';
+  if (name && name.trim().length > 0) initial = name.trim()[0];
+  else if (username && username.trim().length > 0) initial = username.trim()[0];
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initial)}&background=ddd&color=555&rounded=true&size=128`;
+};
 
-const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=ddd&color=555&rounded=true&size=128';
+const API_BASE = 'http://localhost:5000';
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
+
+  // Profile fields
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [mobile, setMobile] = useState(user?.mobile || '');
-  const [location, setLocation] = useState(user?.location || '');
-  const [avatar, setAvatar] = useState(user?.image || defaultAvatar);
+  const [mobile, setMobile] = useState(user?.phone || '');
+  const [avatar, setAvatar] = useState(user?.image || getDefaultAvatar(user?.name, user?.username));
+
+  // Track if user intentionally removed existing avatar
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+
+  // Image cropper
   const [showCrop, setShowCrop] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const fileInputRef = useRef();
 
-  if (!user) {
-    return <div style={{ padding: 20, color: 'red', fontWeight: 600 }}>User not found. Please log in again.</div>;
-  }
+  const fileInputRef = useRef(null);
+  const objectUrlRef = useRef(null); // track blob URLs to revoke later
 
-  // Helper to get cropped image
-  const getCroppedImg = async (imageSrc, cropPixels) => {
-    const image = await createImage(imageSrc);
-    const canvas = document.createElement('canvas');
-    canvas.width = cropPixels.width;
-    canvas.height = cropPixels.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(
-      image,
-      cropPixels.x,
-      cropPixels.y,
-      cropPixels.width,
-      cropPixels.height,
-      0,
-      0,
-      cropPixels.width,
-      cropPixels.height
-    );
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        resolve(url);
-      }, 'image/jpeg');
-    });
-  };
+  // -------- Fetch Profile on mount --------
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const token = userData?.token;
+        if (!token) return;
 
-  function createImage(url) {
-    return new Promise((resolve, reject) => {
+        const res = await fetch(`${API_BASE}/api/users/profile`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setName(data?.name || '');
+          setEmail(data?.email || '');
+          setMobile(data?.phone || '');
+          setAvatar(data?.image ? `${API_BASE}${data.image}` : getDefaultAvatar(data?.name, data?.username));
+          setAvatarRemoved(false);
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  // Cleanup any blob URLs we create
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
+  // -------- Image helpers --------
+  const createImage = (url) =>
+    new Promise((resolve, reject) => {
       const img = new window.Image();
       img.addEventListener('load', () => resolve(img));
       img.addEventListener('error', (err) => reject(err));
       img.setAttribute('crossOrigin', 'anonymous');
       img.src = url;
     });
-  }
 
-  const onSelectFile = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const reader = new FileReader();
-      reader.addEventListener('load', () => {
-        setSelectedImage(reader.result);
-        setShowCrop(true);
-      });
-      reader.readAsDataURL(e.target.files[0]);
+  const getCroppedImg = async (imageSrc, pixelCrop) => {
+    const image = await createImage(imageSrc);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return reject(new Error('Canvas is empty'));
+          const blobUrl = URL.createObjectURL(blob);
+          resolve({ blob, blobUrl });
+        },
+        'image/jpeg',
+        0.95
+      );
+    });
+  };
+
+  // -------- Handlers --------
+  const onEditClick = () => {
+  setShowAvatarMenu(true);
+  };
+
+  const onCropComplete = (_area, areaPixels) => setCroppedAreaPixels(areaPixels);
+
+  const handleCropSave = async () => {
+    try {
+      if (!selectedImage || !croppedAreaPixels) return;
+
+  const { blobUrl } = await getCroppedImg(selectedImage, croppedAreaPixels);
+
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = blobUrl;
+
+      setAvatar(blobUrl);
+      setAvatarRemoved(false); // user selected a new image, no need to remove old on backend separately
+      setShowCrop(false);
+      setSelectedImage(null);
+    } catch (err) {
+      console.error('Crop error:', err);
+      alert('Could not crop the image. Please try again.');
     }
   };
 
-  const onCropComplete = (_, croppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  };
-
-  const handleCropSave = async () => {
-    const croppedImg = await getCroppedImg(selectedImage, croppedAreaPixels);
-    setAvatar(croppedImg);
-    setShowCrop(false);
-    setSelectedImage(null);
-  };
-
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    // TODO: Save profile changes to backend
-    alert('Profile changes saved!');
+    try {
+      const userData = JSON.parse(localStorage.getItem('user'));
+      const token = userData?.token;
+
+      // 1) If avatar is a blob URL, upload it
+      if (avatar && avatar.startsWith('blob:')) {
+        const formData = new FormData();
+        const response = await fetch(avatar);
+        const blob = await response.blob();
+        formData.append('avatar', blob, 'avatar.jpg');
+
+        const uploadRes = await fetch(`${API_BASE}/api/users/upload-avatar`, {
+          method: 'POST',
+          body: formData,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+        });
+
+        if (!uploadRes.ok) {
+          alert('Failed to upload avatar');
+          return;
+        }
+      }
+
+      // 2) If user removed avatar and did NOT upload a new one, tell backend to remove
+      // Adjust body field to match your backend (e.g., removeAvatar: true)
+      const body = {
+        name,
+        email,
+        phone: mobile,
+        removeAvatar: avatarRemoved && !avatar.startsWith('blob:'),
+      };
+
+      const profileRes = await fetch(`${API_BASE}/api/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+        credentials: 'include',
+      });
+
+      if (profileRes.ok) {
+        alert('Profile changes saved!');
+      } else {
+        alert('Failed to save profile changes');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Error saving profile changes');
+    }
   };
 
+  // -------- UI --------
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f9fb' }}>
-      <div style={{
-        width: 400,
+    <div
+      style={{
+        maxWidth: 500,
+        margin: '40px auto',
+        padding: 20,
+        border: '1px solid #ddd',
+        borderRadius: 10,
+        boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
         background: '#fff',
-        borderRadius: 18,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
-        padding: 32,
-        position: 'relative',
-        fontFamily: 'Inter, Arial, sans-serif',
-      }}>
-        {/* Close icon */}
-        <button style={{ position: 'absolute', top: 18, right: 18, background: 'none', border: 'none', fontSize: 22, color: '#888', cursor: 'pointer' }} title="Close">&times;</button>
-
-        {/* Avatar + edit */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-          <div style={{ position: 'relative', width: 70, height: 70 }}>
-            <img src={avatar} alt="avatar" style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e3e3e3' }} />
-            <button
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                background: '#fff',
-                border: '1px solid #e3e3e3',
-                borderRadius: '50%',
-                width: 26,
-                height: 26,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
-              }}
-              onClick={() => fileInputRef.current.click()}
-              title="Change profile picture"
+      }}
+    >
+      {/* Avatar + Edit */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
+        <div style={{ position: 'relative' }}>
+          <img
+            src={avatar}
+            alt="avatar"
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '2px solid #ccc',
+            }}
+          />
+          <button
+            onClick={onEditClick}
+            title="Edit profile picture"
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              background: '#fff',
+              borderRadius: '50%',
+              border: '1px solid #ccc',
+              padding: 6,
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+            }}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
             >
-              <svg width="16" height="16" fill="#555" viewBox="0 0 24 24"><path d="M12 5.9c-3.37 0-6.1 2.73-6.1 6.1s2.73 6.1 6.1 6.1 6.1-2.73 6.1-6.1-2.73-6.1-6.1-6.1zm0 10.2c-2.26 0-4.1-1.84-4.1-4.1s1.84-4.1 4.1-4.1 4.1 1.84 4.1 4.1-1.84 4.1-4.1 4.1zm7.5-10.2h-2.2l-1.1-1.1c-.2-.2-.51-.2-.71 0l-1.1 1.1h-2.2c-.28 0-.5.22-.5.5v2.2c0 .28.22.5.5.5h2.2l1.1 1.1c.2.2.51.2.71 0l1.1-1.1h2.2c.28 0 .5-.22.5-.5v-2.2c0-.28-.22-.5-.5-.5z"/></svg>
-              <input type="file" accept="image/*" style={{ display: 'none' }} ref={fileInputRef} onChange={onSelectFile} />
-            </button>
-          </div>
-          <div style={{ marginLeft: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: 600, fontSize: 20, color: '#222' }}>{name || 'Your name'}</span>
-              {user?.username && (
-                <span style={{ color: '#1976f7', fontSize: 15, fontWeight: 500, background: '#f0f6ff', borderRadius: 5, padding: '2px 8px' }}>@{user.username}</span>
-              )}
+              <path
+                d="M4 20h4.586a1 1 0 0 0 .707-.293l10.414-10.414a2 2 0 0 0 0-2.828l-2.172-2.172a2 2 0 0 0-2.828 0L4.293 14.707A1 1 0 0 0 4 15.414V20z"
+                stroke="#007bff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M13.5 6.5l4 4"
+                stroke="#007bff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          {showAvatarMenu && (
+            <div style={{
+              position: 'absolute',
+              bottom: 40,
+              right: 0,
+              background: '#fff',
+              border: '1px solid #ccc',
+              borderRadius: 8,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              padding: 8,
+              zIndex: 1000,
+              minWidth: 120
+            }}>
+              <button
+                style={{
+                  width: '100%',
+                  padding: '8px 0',
+                  background: 'none',
+                  border: 'none',
+                  color: '#007bff',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  borderRadius: 6,
+                  marginBottom: 4
+                }}
+                onClick={() => {
+                  setAvatar(getDefaultAvatar(name, user?.username));
+                  setAvatarRemoved(true);
+                  setSelectedImage(null);
+                  setShowCrop(false);
+                  setShowAvatarMenu(false);
+                  if (objectUrlRef.current) {
+                    URL.revokeObjectURL(objectUrlRef.current);
+                    objectUrlRef.current = null;
+                  }
+                  // Call backend to remove avatar
+                  const userData = JSON.parse(localStorage.getItem('user'));
+                  const token = userData?.token;
+                  fetch(`${API_BASE}/api/users/remove-avatar`, {
+                    method: 'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`,
+                    },
+                  });
+                }}
+              >Remove Photo</button>
+              <button
+                style={{
+                  width: '100%',
+                  padding: '8px 0',
+                  background: 'none',
+                  border: 'none',
+                  color: '#333',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  borderRadius: 6
+                }}
+                onClick={() => {
+                  setShowAvatarMenu(false);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                    fileInputRef.current.click();
+                  }
+                }}
+              >Change Photo</button>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                ref={fileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files && e.target.files[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.addEventListener('load', () => {
+                    setSelectedImage(reader.result);
+                    setShowCrop(true);
+                    setZoom(1);
+                    setCrop({ x: 0, y: 0 });
+                  });
+                  reader.readAsDataURL(file);
+                }}
+              />
             </div>
-            <div style={{ color: '#888', fontSize: 15 }}>{email || 'yourname@gmail.com'}</div>
-          </div>
+          )}
         </div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 600 }}>{name || 'Your name'}</div>
+          {user?.username && <div style={{ color: '#777' }}>@{user.username}</div>}
+          <div style={{ color: '#555', marginTop: 4 }}>{email || 'yourname@gmail.com'}</div>
+        </div>
+      </div>
 
-        <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '18px 0' }} />
+      <hr style={{ margin: '20px 0' }} />
 
-        <form onSubmit={handleSave}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ flex: 1, color: '#888', fontSize: 15 }}>Name</div>
+      {/* Form */}
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+        {[
+          {
+            label: 'Name',
+            value: name,
+            setter: setName,
+            type: 'text',
+            placeholder: 'Your name',
+            readOnly: false,
+          },
+          {
+            label: 'Email account',
+            value: email,
+            setter: setEmail,
+            type: 'email',
+            placeholder: 'yourname@gmail.com',
+            readOnly: true,
+          },
+          {
+            label: 'Mobile number',
+            value: mobile,
+            setter: setMobile,
+            type: 'text',
+            placeholder: 'Add number',
+            readOnly: false,
+          },
+        ].map((field, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontWeight: 500 }}>{field.label}</label>
             <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              style={{ border: 'none', background: 'none', textAlign: 'right', color: '#222', fontWeight: 500, fontSize: 15, outline: 'none', width: 180 }}
-              placeholder="your name"
+              type={field.type}
+              value={field.value}
+              onChange={(e) => field.setter(e.target.value)}
+              placeholder={field.placeholder}
               autoComplete="off"
+              readOnly={field.readOnly}
+              style={{
+                padding: '10px 12px',
+                borderRadius: 6,
+                border: '1px solid #ccc',
+                fontSize: 14,
+                outline: 'none',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = '#007bff')}
+              onBlur={(e) => (e.target.style.borderColor = '#ccc')}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ flex: 1, color: '#888', fontSize: 15 }}>Email account</div>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              style={{ border: 'none', background: 'none', textAlign: 'right', color: '#222', fontWeight: 500, fontSize: 15, outline: 'none', width: 180 }}
-              placeholder="yourname@gmail.com"
-              autoComplete="off"
-              readOnly
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-            <div style={{ flex: 1, color: '#888', fontSize: 15 }}>Mobile number</div>
-            <input
-              type="text"
-              value={mobile}
-              onChange={e => setMobile(e.target.value)}
-              style={{ border: 'none', background: 'none', textAlign: 'right', color: '#222', fontWeight: 500, fontSize: 15, outline: 'none', width: 180 }}
-              placeholder="Add number"
-              autoComplete="off"
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ flex: 1, color: '#888', fontSize: 15 }}>Location</div>
-            <input
-              type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              style={{ border: 'none', background: 'none', textAlign: 'right', color: '#222', fontWeight: 500, fontSize: 15, outline: 'none', width: 180 }}
-              placeholder="USA"
-              autoComplete="off"
-            />
-          </div>
-          <button type="submit" style={{
-            width: '100%',
-            background: '#1976f7',
-            color: '#fff',
+        ))}
+        <button
+          type="submit"
+          style={{
+            padding: '10px 15px',
+            borderRadius: 6,
             border: 'none',
-            borderRadius: 7,
+            background: '#007bff',
+            color: '#fff',
             fontWeight: 600,
-            fontSize: 16,
-            padding: '12px 0',
+            fontSize: 14,
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(25,118,247,0.08)'
-          }}>Save Change</button>
-        </form>
+            marginTop: 10,
+          }}
+        >
+          Save Changes
+        </button>
+      </form>
 
-        {/* Crop modal */}
-        {showCrop && (
-          <div style={{
+      {/* Crop Modal */}
+      {showCrop && (
+        <div
+          style={{
             position: 'fixed',
             top: 0,
             left: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(0,0,0,0.55)',
-            zIndex: 9999,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.7)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'auto',
-          }}>
-            <div style={{
+            zIndex: 999,
+          }}
+        >
+          <div
+            style={{
               background: '#fff',
-              borderRadius: 12,
-              padding: 24,
-              width: 340,
-              minHeight: 380,
+              padding: 20,
+              borderRadius: 10,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              position: 'relative',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
-            }}>
-              <div style={{ width: 260, height: 260, background: '#222', borderRadius: '50%', overflow: 'hidden', marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}>
-                <div style={{ width: 260, height: 260, position: 'relative' }}>
-                  <Cropper
-                    image={selectedImage}
-                    crop={crop}
-                    zoom={zoom}
-                    aspect={1}
-                    cropShape="round"
-                    showGrid={false}
-                    onCropChange={setCrop}
-                    onZoomChange={setZoom}
-                    onCropComplete={onCropComplete}
-                    style={{ containerStyle: { width: 260, height: 260, background: '#222' } }}
-                  />
-                </div>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={zoom}
-                onChange={e => setZoom(Number(e.target.value))}
-                style={{ width: 180, margin: '0 0 18px 0' }}
+              gap: 15,
+              width: '90%',
+              maxWidth: 400,
+            }}
+          >
+            <div style={{ position: 'relative', width: '100%', height: 300 }}>
+              <Cropper
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
               />
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => setShowCrop(false)} style={{ background: '#eee', color: '#333', border: 'none', borderRadius: 5, padding: '8px 18px', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={handleCropSave} style={{ background: '#1976f7', color: '#fff', border: 'none', borderRadius: 5, padding: '8px 18px', fontWeight: 500, cursor: 'pointer' }}>Crop & Save</button>
-              </div>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.01}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              style={{ width: '100%' }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowCrop(false);
+                  setSelectedImage(null);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: 6,
+                  background: '#f8f9fa',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCropSave}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#28a745',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Crop &amp; Save
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
