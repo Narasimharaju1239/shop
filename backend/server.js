@@ -23,7 +23,8 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://6899ee6ae42fb400080d45aa--srisanthoshimathaaquabazar.netlify.app'
+    'https://6899ee6ae42fb400080d45aa--srisanthoshimathaaquabazar.netlify.app',
+    'https://srisanthoshimathaaquabazar.netlify.app'
   ],
   credentials: true
 }));
