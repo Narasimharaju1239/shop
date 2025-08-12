@@ -24,7 +24,9 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://6899ee6ae42fb400080d45aa--srisanthoshimathaaquabazar.netlify.app',
-    'https://srisanthoshimathaaquabazar.netlify.app'
+    'https://srisanthoshimathaaquabazar.netlify.app',
+    'https://shop-b8r1.onrender.com',
+    'https://www.srisanthoshimathaaquabazar.netlify.app'
   ],
   credentials: true
 }));
