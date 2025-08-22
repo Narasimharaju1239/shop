@@ -207,7 +207,9 @@ const Companies = () => {
           if (imageUrl && imageUrl.startsWith('/uploads/')) {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
               imageUrl = `http://localhost:5000${imageUrl}`;
-            } // else leave as relative for production
+            } else {
+              imageUrl = `https://shop-backend.onrender.com${imageUrl}`; // <-- replace with your actual backend URL if different
+            }
           }
           if (!imageUrl) {
             // Use a local SVG data URL as a placeholder
