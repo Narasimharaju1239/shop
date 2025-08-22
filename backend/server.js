@@ -9,7 +9,7 @@ const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const cartRoutes = require('./routes/cartRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
+// Removed paymentRoutes import (file deleted)
 const payuRoutes = require('./routes/payuRoutes');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
@@ -24,9 +24,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'https://6899ee6ae42fb400080d45aa--srisanthoshimathaaquabazar.netlify.app',
-    'https://srisanthoshimathaaquabazar.netlify.app',
-    'https://shop-b8r1.onrender.com',
-    'https://www.srisanthoshimathaaquabazar.netlify.app'
+    'https://srisanthoshimathaaquabazar.netlify.app'
   ],
   credentials: true
 }));
@@ -41,7 +39,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/cart', cartRoutes);
-app.use('/api/payments', paymentRoutes);
+// Removed paymentRoutes usage (file deleted)
 app.use('/api/payu', payuRoutes);
 
 app.get('/', (req, res) => {

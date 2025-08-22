@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import API from '../utils/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import Cropper from 'react-easy-crop';
+import getCroppedImg from '../utils/getCroppedImg';
 
 
 const Companies = () => {
@@ -14,6 +16,12 @@ const Companies = () => {
   const [editId, setEditId] = useState(null);
   const fileInputRef = useRef();
   const navigate = useNavigate();
+  // Cropper states
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [rawImage, setRawImage] = useState(null);
 
   const handleEdit = (company) => {
     setEditId(company._id);
@@ -43,11 +51,15 @@ const Companies = () => {
   };
 
   const handleAdd = async () => {
+    if (!name.trim()) {
+      toast.error('Please provide company name.');
+      return;
+    }
     try {
       if (editId) {
         await API.put(`/companies/${editId}`, { name, image });
       } else {
-        await API.post('/companies', { name, image });
+        await API.post('/companies', image ? { name, image } : { name });
       }
       setEditId(null);
       setName('');
@@ -63,22 +75,38 @@ const Companies = () => {
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Show preview before upload
+    // Show crop modal with selected image
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setImagePreview(ev.target.result);
+      setRawImage(ev.target.result);
+      setCropModalOpen(true);
     };
     reader.readAsDataURL(file);
-    const formData = new FormData();
-    formData.append('image', file);
+  };
+
+  // Called when cropping is done
+  const handleCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  // Called when user confirms crop
+  const handleCropSave = async () => {
+    if (!rawImage || !croppedAreaPixels) return;
     setUploading(true);
     try {
+      const croppedBlob = await getCroppedImg(rawImage, croppedAreaPixels, zoom, 420/220); // 420x220 aspect
+      setImagePreview(URL.createObjectURL(croppedBlob));
+      // Upload cropped image
+      const formData = new FormData();
+      formData.append('image', croppedBlob, 'cropped.jpg');
       const res = await API.post('/companies/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setImage(res.data.imageUrl);
+      setCropModalOpen(false);
+      setRawImage(null);
     } catch {
-      toast.error('Image upload failed.');
+      toast.error('Image crop/upload failed.');
     }
     setUploading(false);
   };
@@ -89,6 +117,38 @@ const Companies = () => {
 
   return (
     <div style={{ padding: '20px' }}>
+      {/* Crop Modal */}
+      {cropModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, minWidth: 350, minHeight: 350, position: 'relative' }}>
+            <h3 style={{ marginBottom: 16 }}>Crop Company Image</h3>
+            <div style={{ position: 'relative', width: 350, height: 183, background: '#222' }}>
+              <Cropper
+                image={rawImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={420/220}
+                cropShape="rect"
+                showGrid={true}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={handleCropComplete}
+              />
+            </div>
+            <div style={{ marginTop: 18, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label>Zoom:</label>
+              <input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e => setZoom(Number(e.target.value))} />
+            </div>
+            <div style={{ marginTop: 18, display: 'flex', gap: 12 }}>
+              <button onClick={handleCropSave} style={{ padding: '10px 24px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600 }}>Crop & Upload</button>
+              <button onClick={() => { setCropModalOpen(false); setRawImage(null); }} style={{ padding: '10px 24px', background: '#bdbdbd', color: '#333', border: 'none', borderRadius: 8, fontWeight: 600 }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       <h2 style={{ textAlign: 'center', fontWeight: 700, fontSize: '2rem', color: '#1565c0', marginBottom: '18px', letterSpacing: 1 }}>Manage Companies</h2>
       {/* Search Bar */}
       <div style={{ maxWidth: 400, margin: '0 auto 24px auto', textAlign: 'center' }}>
@@ -141,22 +201,17 @@ const Companies = () => {
           </button>
         )}
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-          gap: '40px',
-          marginTop: '40px',
-          alignItems: 'start',
-        }}
-      >
         {companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => {
           let imageUrl = c.image;
+          // Use relative URL in production, localhost in development
           if (imageUrl && imageUrl.startsWith('/uploads/')) {
-            imageUrl = `http://localhost:5000${imageUrl}`;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+              imageUrl = `http://localhost:5000${imageUrl}`;
+            } // else leave as relative for production
           }
           if (!imageUrl) {
-            imageUrl = 'https://via.placeholder.com/420x220?text=No+Image';
+            // Use a local SVG data URL as a placeholder
+            imageUrl = 'data:image/svg+xml;utf8,<svg width=420 height=220 xmlns="http://www.w3.org/2000/svg"><rect width=420 height=220 fill="%23eee"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="24">No Image</text></svg>';
           }
           return (
             <div
@@ -164,43 +219,49 @@ const Companies = () => {
               style={{
                 width: '100%',
                 maxWidth: '540px',
-                minHeight: '300px',
-                background: '#222',
+                background: '#fff',
                 borderRadius: '20px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
                 position: 'relative',
                 cursor: 'pointer',
                 overflow: 'hidden',
+                display: 'block',
+                marginBottom: '24px',
               }}
               onClick={() => navigate(`/owner/products?companyId=${c._id}`)}
             >
-              <img
-                src={imageUrl}
-                alt={c.name}
-                style={{ width: '100%', height: '220px', objectFit: 'cover', background: '#eee' }}
-                onError={e => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/420x220?text=No+Image'; }}
-              />
-              <span style={{
-                marginTop: 18,
-                color: '#fff',
-                textShadow: '1px 1px 2px #000',
-                fontWeight: 'bold',
-                fontSize: '1.6rem',
-                alignSelf: 'center',
-              }}>{c.name}</span>
-              <div style={{ position: 'absolute', top: 20, right: 20, display: 'flex', gap: '12px' }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => handleEdit(c)} style={{ padding: '8px 18px', background: '#fbc02d', color: '#333', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Edit</button>
-                <button onClick={() => handleDelete(c._id)} style={{ padding: '8px 18px', background: '#e53935', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+              <div style={{ width: '100%', height: '320px', position: 'relative' }}>
+                <img
+                  src={imageUrl}
+                  alt={c.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#eee', display: 'block', borderTopLeftRadius: '20px', borderTopRightRadius: '20px' }}
+                  onError={e => { e.target.onerror = null; e.target.src = 'data:image/svg+xml;utf8,<svg width=420 height=220 xmlns="http://www.w3.org/2000/svg"><rect width=420 height=220 fill="%23eee"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="24">No Image</text></svg>'; }}
+                />
+                <div style={{ position: 'absolute', top: 20, right: 20, display: 'flex', gap: '12px', zIndex: 2 }} onClick={e => e.stopPropagation()}>
+                  <button onClick={() => handleEdit(c)} style={{ padding: '8px 18px', background: '#fbc02d', color: '#000000ff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Edit</button>
+                  <button onClick={() => handleDelete(c._id)} style={{ padding: '8px 18px', background: '#e53935', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+                </div>
               </div>
+              {/* Company name below the image */}
+              <div style={{
+                width: '100%',
+                background: '#000',
+                color: '#fff',
+                fontWeight: 'bold',
+                fontSize: '1.3rem',
+                textAlign: 'center',
+                padding: '16px 0 14px 0',
+                letterSpacing: 1,
+                textShadow: '1px 1px 2px #000',
+                borderBottomLeftRadius: '20px',
+                borderBottomRightRadius: '20px',
+                marginTop: 0
+              }}>{c.name}</div>
             </div>
           );
         })}
       </div>
-    </div>
   );
-};
+}
 
 export default Companies;

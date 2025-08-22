@@ -12,7 +12,10 @@ exports.getCompanies = async (req, res, next) => {
 exports.addCompany = async (req, res, next) => {
   const { name, image } = req.body;
   try {
-    const company = await Company.create({ name, image });
+    // Only include image if provided
+    const companyData = { name };
+    if (image) companyData.image = image;
+    const company = await Company.create(companyData);
     res.status(201).json(company);
   } catch (err) {
     next(err);
