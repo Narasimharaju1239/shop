@@ -14,7 +14,8 @@ router.post('/upload', protect, authorizeRoles('owner'), upload.single('image'),
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+  // Cloudinary URL is in req.file.path
+  res.json({ imageUrl: req.file.path });
 });
 
 router.put('/:id', protect, authorizeRoles('owner'), updateCompany);

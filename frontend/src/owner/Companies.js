@@ -152,11 +152,13 @@ const Companies = () => {
       >
         {companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => {
           let imageUrl = c.image;
+          // If imageUrl is a local upload, convert to absolute URL
           if (imageUrl && imageUrl.startsWith('/uploads/')) {
             imageUrl = `http://localhost:5000${imageUrl}`;
           }
-          if (!imageUrl) {
-            imageUrl = 'https://via.placeholder.com/420x220?text=No+Image';
+          // If imageUrl is missing or empty, use a local fallback image
+          if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+            imageUrl = '/no-image.png';
           }
           return (
             <div
@@ -193,7 +195,7 @@ const Companies = () => {
                   src={imageUrl}
                   alt={c.name}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', borderRadius: '20px' }}
-                  onError={e => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/420x300?text=No+Image'; }}
+                  onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
                 />
                 <div style={{ position: 'absolute', top: 20, right: 20, display: 'flex', gap: '12px', zIndex: 2 }} onClick={e => e.stopPropagation()}>
                   <button onClick={() => handleEdit(c)} style={{ padding: '8px 18px', background: '#fbc02d', color: '#333', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Edit</button>

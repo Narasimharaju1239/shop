@@ -16,7 +16,8 @@ router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+  // Cloudinary URL is in req.file.path
+  res.json({ imageUrl: req.file.path });
 });
 
 router.get('/', getAllProducts);

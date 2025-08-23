@@ -1,5 +1,5 @@
+require('dotenv').config();
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
@@ -13,12 +13,10 @@ const cartRoutes = require('./routes/cartRoutes');
 const payuRoutes = require('./routes/payuRoutes');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
-dotenv.config();
+require('./utils/cloudinary'); // Force Cloudinary config and debug log
 connectDB();
 
-
 const app = express();
-
 
 app.use(cors({
   origin: [
