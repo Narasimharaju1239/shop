@@ -16,8 +16,10 @@ export const CartProvider = ({ children }) => {
 
   // Save cartItems to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('cartItems', JSON.stringify(cartItems));
-  }, [cartItems]);
+    if (!user) {
+      localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    }
+  }, [cartItems, user]);
 
   // Fetch cart from backend when user logs in
   useEffect(() => {
@@ -34,14 +36,33 @@ export const CartProvider = ({ children }) => {
         }
       }
     };
-    if (user && user.token) fetchCart();
+    if (user && user.token) {
+      fetchCart();
+    } else {
+      // If user logs out, reset to guest cart from localStorage
+      const saved = localStorage.getItem('cartItems');
+      setCartItems(saved ? JSON.parse(saved) : []);
+    }
   }, [user, user?._id, user?.id, user?.token]);
 
   const addToCart = async (product) => {
     if (!user) {
-      toast.error('Please login to add items to cart');
+      // Guest: add to local cart
+      const exists = cartItems.find(item => item._id === product._id);
+      let updated;
+      if (exists) {
+        updated = cartItems.map(item =>
+          item._id === product._id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
+        );
+      } else {
+        updated = [...cartItems, { ...product, quantity: 1 }];
+      }
+      setCartItems(updated);
+      localStorage.setItem('cartItems', JSON.stringify(updated));
+      toast.success(`${product.name} added to cart!`);
       return;
     }
+    // Logged-in user: add to backend cart
     try {
       const res = await API.post('/cart/add', { productId: product._id });
       setCartItems(res.data.items);
@@ -52,7 +73,14 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = async (productId) => {
-    if (!user) return;
+    if (!user) {
+      // Guest: remove from local cart
+      const updated = cartItems.filter(item => item._id !== productId);
+      setCartItems(updated);
+      localStorage.setItem('cartItems', JSON.stringify(updated));
+      return;
+    }
+    // Logged-in user: remove from backend cart
     try {
       const res = await API.post('/cart/remove', { productId });
       setCartItems(res.data.items);
@@ -62,7 +90,13 @@ export const CartProvider = ({ children }) => {
   };
 
   const clearCart = async () => {
-    if (!user) return;
+    if (!user) {
+      // Guest: clear local cart
+      setCartItems([]);
+      localStorage.setItem('cartItems', JSON.stringify([]));
+      return;
+    }
+    // Logged-in user: clear backend cart
     try {
       await API.post('/cart/clear');
       setCartItems([]);

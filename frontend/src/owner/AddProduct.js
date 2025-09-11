@@ -14,6 +14,7 @@ const AddProduct = () => {
     image: null
   });
 
+
   const handleChange = e => {
     const { name, value, files } = e.target;
     setForm(prev => ({

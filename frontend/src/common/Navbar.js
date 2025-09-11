@@ -2,10 +2,12 @@ import React, { useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { CartContext } from '../context/CartContext';
 
-const Navbar = ({ onMenuClick }) => {
+const Navbar = ({ onMenuClick, search, setSearch }) => {
   const { user, logout } = useContext(AuthContext);
   const { currentTheme } = useTheme();
+  const { cartItems } = useContext(CartContext);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,18 +27,19 @@ const Navbar = ({ onMenuClick }) => {
         html::-webkit-scrollbar, body::-webkit-scrollbar {
           display: none; /* Chrome, Safari, Opera */
         }
-        
+
         /* Responsive Navbar */
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .navbar-container {
-            padding: 0 12px !important;
+            padding: 0 8px !important;
+            height: 60px !important;
           }
           .navbar-title {
-            font-size: 16px !important;
-            margin-left: 8px !important;
+            font-size: 18px !important;
+            margin-left: 6px !important;
           }
           .navbar-links {
-            gap: 4px !important;
+            gap: 2px !important;
           }
           .navbar-link {
             font-size: 13px !important;
@@ -46,24 +49,51 @@ const Navbar = ({ onMenuClick }) => {
           .navbar-logout {
             font-size: 13px !important;
             padding: 4px 8px !important;
-            margin-right: 12px !important;
+            margin-right: 8px !important;
           }
           .hamburger-menu {
             padding: 4px 6px !important;
-            margin-right: 4px !important;
+            margin-right: 2px !important;
+          }
+          .navbar-container img {
+            height: 48px !important;
           }
         }
-        
-        @media (max-width: 480px) {
+
+        @media (max-width: 600px) {
+          .navbar-container {
+            flex-direction: column !important;
+            height: auto !important;
+            padding: 0 4px !important;
+          }
           .navbar-title {
-            font-size: 14px !important;
-            display: none !important;
+            font-size: 15px !important;
+            margin-left: 2px !important;
           }
           .navbar-links {
             flex-wrap: wrap !important;
+            gap: 1px !important;
           }
           .navbar-link {
-            font-size: 12px !important;
+            font-size: 11px !important;
+            padding: 3px 4px !important;
+            margin: 0 1px !important;
+          }
+          .navbar-logout {
+            font-size: 11px !important;
+            padding: 3px 6px !important;
+            margin-right: 4px !important;
+          }
+          .hamburger-menu {
+            padding: 3px 4px !important;
+            margin-right: 1px !important;
+          }
+          .navbar-container img {
+            height: 36px !important;
+          }
+          .navbar-container > div {
+            flex-direction: column !important;
+            gap: 4px !important;
           }
         }
       `}</style>
@@ -75,7 +105,7 @@ const Navbar = ({ onMenuClick }) => {
           padding: '0 24px',
           display: 'flex',
           alignItems: 'center',
-          height: 56,
+          height: location.pathname === '/' ? 80 : 60,
           minHeight: 56,
           boxShadow: `0 2px 8px ${currentTheme.shadow}`,
           borderBottom: `1px solid ${currentTheme.border}`,
@@ -90,7 +120,7 @@ const Navbar = ({ onMenuClick }) => {
           transition: 'all 0.2s ease',
         }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: '0 0 auto', height: '100%' }}>
-          {!(location.pathname === '/' || location.pathname === '/login' || location.pathname === '/signup') && (
+          {user && !(location.pathname === '/' || location.pathname === '/login' || location.pathname === '/signup') && (
             <button
               onClick={onMenuClick}
               className="hamburger-menu"
@@ -121,10 +151,115 @@ const Navbar = ({ onMenuClick }) => {
               <span style={{ fontWeight: 'bold', fontSize: 22, letterSpacing: 2, color: currentTheme.text, transition: 'color 0.2s' }}>☰</span>
             </button>
           )}
-          <span className="navbar-title" style={{ fontWeight: 500, fontSize: '20px', color: currentTheme.text, letterSpacing: 1, marginLeft: 4 }}>
-            Sri Santhoshimatha Aqua Bazar
-          </span>
+          {location.pathname === '/' ? (
+            <img src="/logo.png" alt="Shop Logo" style={{ height: 80, width: 'auto', marginLeft: 4 }} />
+          ) : (
+            <span className="navbar-title" style={{ fontWeight: 500, fontSize: '25px', color: currentTheme.text, letterSpacing: 1, marginLeft: 4 }}>
+              Sri Santhoshimatha Aqua Bazar
+            </span>
+          )}
         </div>
+        {/* Search bar only on landing page */}
+        {location.pathname === '/' && (
+          <>
+            {/* Companies Button */}
+            <Link
+              to="/customer/companies"
+              style={{
+                padding: '10px 18px',
+                background: 'transparent',
+                color: '#111',
+                fontWeight: 70,
+                fontSize: 16,
+                borderRadius: '8px',
+                textDecoration: 'none',
+                marginLeft: '220px',
+                marginRight: '18px',
+                boxShadow: 'none',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              Companies
+            </Link>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flex: 1,
+              maxWidth: '500px',
+              background: '#f5f7fa', // Light color for search bar
+              borderRadius: '10px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.07)', // Subtle shadow
+              padding: '6px 12px',
+              marginLeft: '18px',
+              marginRight: '18px',
+            }}>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search products..."
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  fontSize: '16px',
+                  border: 'none',
+                  outline: 'none',
+                  borderRadius: '8px',
+                  minWidth: '180px',
+                  background: '#f5f7fa', // Match container
+                }}
+              />
+              <button
+                style={{
+                  padding: '10px 20px',
+                  background: currentTheme.button,
+                  color: currentTheme.buttonText,
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                }}
+              >
+                🔍 Search
+              </button>
+            </div>
+            {/* Cart icon with count */}
+            <div
+              style={{ display: 'flex', alignItems: 'flex-end', cursor: 'pointer', position: 'relative', height: 38, width: 54, justifyContent: 'center', marginLeft: '18px', marginRight: '18px' }}
+              onClick={() => {
+                if (user) {
+                  navigate('/customer/cart');
+                } else {
+                  navigate('/guest/cart');
+                }
+              }}
+            >
+              <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g>
+                  <path d="M4 8H8L12 26H30L34 12H10" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  <circle cx="14" cy="32" r="3" fill="#111" />
+                  <circle cx="28" cy="32" r="3" fill="#111" />
+                  <line x1="10" y1="12" x2="32" y2="12" stroke="#111" strokeWidth="2" />
+                  <line x1="12" y1="18" x2="30" y2="18" stroke="#111" strokeWidth="2" />
+                  <line x1="14" y1="12" x2="14" y2="26" stroke="#111" strokeWidth="2" />
+                  <line x1="20" y1="12" x2="20" y2="26" stroke="#111" strokeWidth="2" />
+                  <line x1="26" y1="12" x2="26" y2="26" stroke="#111" strokeWidth="2" />
+                </g>
+              </svg>
+              {cartItems.length > 0 && (
+                <span style={{ position: 'absolute', top: -6, left: '70%', transform: 'translateX(-50%)', color: '#111', fontSize: 15, fontWeight: 600, minWidth: 28, textAlign: 'center', zIndex: 2 }}>
+                  {cartItems.length}
+                </span>
+              )}
+            </div>
+          </>
+        )}
         <div className="nav-links navbar-links" style={{
           display: 'flex',
           alignItems: 'center',
@@ -137,13 +272,35 @@ const Navbar = ({ onMenuClick }) => {
           overflowY: 'hidden',
           flex: 1,
         }}>
-          <Link to="/about" className="navbar-link" style={{ ...linkStyle(currentTheme), marginLeft: 24, marginRight: 4 }}>
+          <Link to="/about" className="navbar-link" style={{ ...linkStyle(currentTheme), marginLeft: 20, marginRight: 4 }}>
             About
           </Link>
-          <Link to="/contactus" className="navbar-link" style={{ ...linkStyle(currentTheme), marginLeft: 8, marginRight: 40 }}>
+          <Link to="/contactus" className="navbar-link" style={{ ...linkStyle(currentTheme), marginLeft: 1, marginRight: 15 }}>
             Contact Us
           </Link>
-          
+          {/* Show Sign In button if not logged in */}
+          {!user && (
+            <Link
+              to="/login"
+              className="navbar-link"
+              style={{
+                ...linkStyle(currentTheme),
+                background: currentTheme.button,
+                color: currentTheme.buttonText,
+                fontWeight: 700,
+                border: 'none',
+                marginLeft: '8px',
+                marginRight: '50px',
+                padding: '8px 18px',
+                borderRadius: '8px',
+                fontSize: 16,
+                boxShadow: `0 2px 8px ${currentTheme.shadow}`,
+                transition: 'all 0.2s',
+              }}
+            >
+              Sign In
+            </Link>
+          )}
           {user && (
             <>
               <button 

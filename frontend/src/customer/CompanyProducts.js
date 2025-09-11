@@ -44,22 +44,27 @@ const CompanyProducts = () => {
     <div style={{ padding: '20px' }}>
       <h2 style={{ textAlign: 'center' }}>Products</h2>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '20px', marginTop: '20px'
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '32px', marginTop: '32px'
       }}>
         {products.map(p => {
           return (
             <div key={p._id} style={{
-              border: '1px solid #ccc', borderRadius: '10px', padding: '15px',
-              textAlign: 'center', background: '#fff'
+              border: '1px solid #ccc',
+              borderRadius: '16px',
+              padding: '28px', // <-- Change padding for more/less space inside card
+              textAlign: 'center',
+              background: '#fff',
+              minHeight: '420px', // <-- Change minHeight for taller/shorter cards
+              boxShadow: '0 4px 24px rgba(0,0,0,0.07)'
             }}>
               {/* Image Carousel */}
               {p.images && Array.isArray(p.images) && p.images.length > 0 ? (
-                <div style={{ position: 'relative', width: '100%', height: '150px', marginBottom: 8, overflow: 'hidden', borderRadius: '8px', background: '#fff' }}>
+                <div style={{ position: 'relative', width: '100%', height: '220px', marginBottom: 12, overflow: 'hidden', borderRadius: '12px', background: '#fff' }}>
                   <img
                     src={p.images[(carouselIndexes[p._id] || 0)].startsWith('/uploads/') ? `http://localhost:5000${p.images[(carouselIndexes[p._id] || 0)]}` : p.images[(carouselIndexes[p._id] || 0)]}
                     alt={p.name}
-                    style={{ width: '100%', height: '150px', objectFit: 'contain', borderRadius: '8px', background: '#fff' }}
+                    style={{ width: '100%', height: '220px', objectFit: 'contain', borderRadius: '12px', background: '#fff' }}
                     onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
                   />
                   {/* Carousel dots */}
@@ -87,7 +92,7 @@ const CompanyProducts = () => {
                 <img
                   src={p.image && typeof p.image === 'string' && p.image.startsWith('/uploads/') ? `http://localhost:5000${p.image}` : (p.image && typeof p.image === 'string' && p.image.trim() !== '' ? p.image : '/no-image.png')}
                   alt={p.name}
-                  style={{ width: '100%', height: '150px', objectFit: 'contain', borderRadius: '8px', background: '#fff' }}
+                  style={{ width: '100%', height: '220px', objectFit: 'contain', borderRadius: '12px', background: '#fff' }}
                   onError={e => { e.target.onerror = null; e.target.src = '/no-image.png'; }}
                 />
               )}

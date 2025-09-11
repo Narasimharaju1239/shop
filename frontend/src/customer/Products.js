@@ -248,7 +248,7 @@ const Products = () => {
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = `0 4px 20px ${currentTheme.shadow}`;
+              e.currentTarget.style.boxShadow = `0 4px 200px ${currentTheme.shadow}`;
             }}
             onClick={e => {
               if (e.target.tagName !== 'BUTTON') {

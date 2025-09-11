@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
+import Modal from 'react-modal';
+import getCroppedImg from '../utils/cropImage';
 import API from '../utils/api';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +14,46 @@ const Companies = () => {
   const [image, setImage] = useState('');
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [rawImage, setRawImage] = useState(null);
+  const [aspect, setAspect] = useState(1); // Default 1:1
+  const [fullImageAspect, setFullImageAspect] = useState(null); // For 'Full Image' option
+  const [minZoom, setMinZoom] = useState(1);
+  // Calculate minZoom to fit full image in crop area
+  const calculateMinZoom = useCallback((img, aspect) => {
+    if (!img) return 1;
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    const cropWidth = aspect >= 1 ? 320 : 320 * aspect; // modal crop area width
+    const cropHeight = aspect >= 1 ? 320 / aspect : 320; // modal crop area height
+    const zoomW = cropWidth / width;
+    const zoomH = cropHeight / height;
+    return Math.max(zoomW, zoomH, 1);
+  }, []);
+
+  // When image or aspect changes, set minZoom and zoom
+  useEffect(() => {
+    if (!rawImage) return;
+    const img = new window.Image();
+    img.src = rawImage;
+    img.onload = () => {
+      if (aspect === 'full') {
+        const naturalAspect = img.naturalWidth / img.naturalHeight;
+        setFullImageAspect(naturalAspect);
+        const minZ = calculateMinZoom(img, naturalAspect);
+        setMinZoom(minZ);
+        setZoom(minZ);
+      } else {
+        setFullImageAspect(null);
+        const minZ = calculateMinZoom(img, aspect);
+        setMinZoom(minZ);
+        setZoom(minZ);
+      }
+    };
+  }, [rawImage, aspect, calculateMinZoom]);
   const [editId, setEditId] = useState(null);
   const fileInputRef = useRef();
   const navigate = useNavigate();
@@ -60,27 +103,52 @@ const Companies = () => {
     }
   };
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Show preview before upload
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setImagePreview(ev.target.result);
+      setRawImage(ev.target.result);
+      setCropModalOpen(true);
     };
     reader.readAsDataURL(file);
-    const formData = new FormData();
-    formData.append('image', file);
+  };
+
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleCropSave = async () => {
     setUploading(true);
     try {
+      let cropToUse = croppedAreaPixels;
+      if (aspect === 'full' && rawImage) {
+        // Get the full image dimensions
+        const img = new window.Image();
+        img.src = rawImage;
+        await new Promise(res => { img.onload = res; });
+        cropToUse = { x: 0, y: 0, width: img.naturalWidth, height: img.naturalHeight };
+      }
+      const croppedBlob = await getCroppedImg(rawImage, cropToUse);
+      setImagePreview(URL.createObjectURL(croppedBlob));
+      const formData = new FormData();
+      formData.append('image', croppedBlob, 'cropped-image.jpg');
       const res = await API.post('/companies/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setImage(res.data.imageUrl);
+      setCropModalOpen(false);
+      setRawImage(null);
     } catch {
-      toast.error('Image upload failed.');
+      toast.error('Image crop/upload failed.');
     }
     setUploading(false);
+  };
+
+  const handleChangePhoto = () => {
+    setCropModalOpen(false);
+    setRawImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   useEffect(() => {
@@ -100,6 +168,93 @@ const Companies = () => {
           style={{ padding: '12px', width: '100%', borderRadius: 8, border: '1px solid #1565c0', fontSize: 16 }}
         />
       </div>
+  <Modal
+        isOpen={cropModalOpen}
+        onRequestClose={() => setCropModalOpen(false)}
+        style={{
+          overlay: { zIndex: 1000, background: 'rgba(0,0,0,0.7)' },
+          content: {
+            maxWidth: 500,
+            width: '90%',
+            margin: 'auto',
+            borderRadius: 16,
+            padding: 0,
+            border: 'none',
+            background: '#fff',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+          }
+        }}
+        ariaHideApp={false}
+      >
+        <div style={{ padding: 24, paddingBottom: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 24, marginBottom: 18, textAlign: 'center', letterSpacing: 1 }}>Crop Your Image</div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 18 }}>
+            {[
+              { label: '16:9', value: 16/9 },
+              { label: '4:3', value: 4/3 },
+              { label: '1:1', value: 1 },
+              { label: 'Full', value: 'full' }
+            ].map(opt => (
+              <button
+                key={opt.label}
+                onClick={() => setAspect(opt.value)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: (aspect === opt.value || (aspect === 'full' && opt.value === 'full')) ? '#1976d2' : '#f4f4f4',
+                  color: (aspect === opt.value || (aspect === 'full' && opt.value === 'full')) ? '#fff' : '#333',
+                  fontWeight: 600,
+                  fontSize: 16,
+                  boxShadow: (aspect === opt.value || (aspect === 'full' && opt.value === 'full')) ? '0 2px 8px #1976d233' : 'none',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  borderBottom: (aspect === opt.value || (aspect === 'full' && opt.value === 'full')) ? '2px solid #1976d2' : '2px solid transparent',
+                  transition: 'all 0.15s',
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: 220, background: '#eee', borderRadius: 12, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+            {rawImage && (
+              <Cropper
+                image={rawImage}
+                crop={crop}
+                zoom={zoom}
+                minZoom={minZoom}
+                aspect={aspect === 'full' && fullImageAspect ? fullImageAspect : aspect}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+                cropShape="rect"
+                showGrid={false}
+              />
+            )}
+          </div>
+          <div style={{ margin: '0 0 18px 0', textAlign: 'center', fontWeight: 500, fontSize: 18 }}>Preview</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+            {imagePreview && (
+              <img src={imagePreview} alt="Preview" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #ccc', background: '#fff' }} />
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
+            <input
+              type="range"
+              min={minZoom}
+              max={3}
+              step={0.01}
+              value={zoom}
+              onChange={e => setZoom(Number(e.target.value))}
+              style={{ width: '80%' }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, padding: '0 0 24px 0' }}>
+          <button onClick={handleChangePhoto} style={{ padding: '10px 24px', background: '#fff', color: '#1976d2', border: '1px solid #1976d2', borderRadius: 8, fontWeight: 600, fontSize: 16, marginRight: 8, cursor: 'pointer' }}>Change photo</button>
+          <button onClick={handleCropSave} style={{ padding: '10px 32px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 18, cursor: 'pointer' }}>Crop & Save</button>
+        </div>
+      </Modal>
+
       <div style={{
         maxWidth: '700px',
         margin: '0 auto 32px auto',

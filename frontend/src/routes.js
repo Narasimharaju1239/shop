@@ -30,7 +30,6 @@ import PrivateRoute from './utils/PrivateRoute';
 import CustomerCompanies from './customer/Companies';
 import CompanyProducts from './customer/CompanyProducts';
 import { AuthContext } from './context/AuthContext';
-// ...existing code...
 
 const RoutesConfig = () => {
   const { user } = useContext(AuthContext);
@@ -53,9 +52,9 @@ const RoutesConfig = () => {
       <Route path="/owner/home" element={<PrivateRoute role="owner"><Layout><OwnerHome /></Layout></PrivateRoute>} />
       <Route path="/owner/companies" element={<PrivateRoute role="owner"><Layout><Companies /></Layout></PrivateRoute>} />
       <Route path="/owner/products" element={<PrivateRoute role="owner"><Layout><OwnerProducts /></Layout></PrivateRoute>} />
-      <Route path="/customer/products" element={<PrivateRoute role="customer"><Layout><CustomerProducts /></Layout></PrivateRoute>} />
-      <Route path="/customer/products/:id" element={<PrivateRoute role="customer"><Layout><ProductDetails /></Layout></PrivateRoute>} />
-      <Route path="/customer/cart" element={<PrivateRoute role="customer"><Layout><Cart /></Layout></PrivateRoute>} />
+      <Route path="/customer/products" element={<Layout><CustomerProducts /></Layout>} />
+      <Route path="/customer/products/:id" element={<Layout><ProductDetails /></Layout>} />
+      <Route path="/customer/cart" element={<Layout><Cart /></Layout>} />
       <Route path="/customer/orders" element={<PrivateRoute role="customer"><Layout><Orders /></Layout></PrivateRoute>} />
       <Route path="/customer/profile" element={<PrivateRoute role="customer"><Layout><CustomerProfile /></Layout></PrivateRoute>} />
       <Route path="/owner/orders" element={<PrivateRoute role="owner"><Layout><ManageOrders /></Layout></PrivateRoute>} />
@@ -66,8 +65,8 @@ const RoutesConfig = () => {
       <Route path="/customer/payment-success" element={<PrivateRoute role="customer"><Layout><PaymentSuccess /></Layout></PrivateRoute>} />
       <Route path="/customer/payment-failed" element={<PrivateRoute role="customer"><Layout><PaymentFailed /></Layout></PrivateRoute>} />
       <Route path="/customer/order-confirmation" element={<PrivateRoute role="customer"><Layout><OrderConfirmation /></Layout></PrivateRoute>} />
-      <Route path="/customer/companies" element={<PrivateRoute role="customer"><Layout><CustomerCompanies /></Layout></PrivateRoute>} />
-      <Route path="/customer/companies/:companyId" element={<PrivateRoute role="customer"><Layout><CompanyProducts /></Layout></PrivateRoute>} />
+      <Route path="/customer/companies" element={<Layout><CustomerCompanies /></Layout>} />
+      <Route path="/customer/companies/:companyId" element={<Layout><CompanyProducts /></Layout>} />
 
       {/* Direct /profile route for both roles */}
       <Route path="/profile" element={<PrivateRoute><Layout>{user?.role === 'owner' ? <Profile /> : <CustomerProfile />}</Layout></PrivateRoute>} />
