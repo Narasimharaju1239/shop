@@ -229,33 +229,64 @@ const Navbar = ({ onMenuClick, search, setSearch }) => {
                 🔍 Search
               </button>
             </div>
-            {/* Cart icon with count */}
-            <div
-              style={{ display: 'flex', alignItems: 'flex-end', cursor: 'pointer', position: 'relative', height: 38, width: 54, justifyContent: 'center', marginLeft: '18px', marginRight: '18px' }}
-              onClick={() => {
-                if (user) {
-                  navigate('/customer/cart');
-                } else {
+            {/* Show both guest and customer cart icons in navbar, side by side */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Guest cart icon (always visible) */}
+              <div
+                style={{ display: 'flex', alignItems: 'flex-end', cursor: 'pointer', position: 'relative', height: 38, width: 54, justifyContent: 'center', marginLeft: '18px', marginRight: '6px' }}
+                onClick={() => {
                   navigate('/guest/cart');
-                }
-              }}
-            >
-              <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g>
-                  <path d="M4 8H8L12 26H30L34 12H10" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  <circle cx="14" cy="32" r="3" fill="#111" />
-                  <circle cx="28" cy="32" r="3" fill="#111" />
-                  <line x1="10" y1="12" x2="32" y2="12" stroke="#111" strokeWidth="2" />
-                  <line x1="12" y1="18" x2="30" y2="18" stroke="#111" strokeWidth="2" />
-                  <line x1="14" y1="12" x2="14" y2="26" stroke="#111" strokeWidth="2" />
-                  <line x1="20" y1="12" x2="20" y2="26" stroke="#111" strokeWidth="2" />
-                  <line x1="26" y1="12" x2="26" y2="26" stroke="#111" strokeWidth="2" />
-                </g>
-              </svg>
-              {cartItems.length > 0 && (
-                <span style={{ position: 'absolute', top: -6, left: '70%', transform: 'translateX(-50%)', color: '#111', fontSize: 15, fontWeight: 600, minWidth: 28, textAlign: 'center', zIndex: 2 }}>
-                  {cartItems.length}
-                </span>
+                }}
+              >
+                <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g>
+                    <path d="M4 8H8L12 26H30L34 12H10" stroke="#111" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <circle cx="14" cy="32" r="3" fill="#111" />
+                    <circle cx="28" cy="32" r="3" fill="#111" />
+                    <line x1="10" y1="12" x2="32" y2="12" stroke="#111" strokeWidth="2" />
+                    <line x1="12" y1="18" x2="30" y2="18" stroke="#111" strokeWidth="2" />
+                    <line x1="14" y1="12" x2="14" y2="26" stroke="#111" strokeWidth="2" />
+                    <line x1="20" y1="12" x2="20" y2="26" stroke="#111" strokeWidth="2" />
+                    <line x1="26" y1="12" x2="26" y2="26" stroke="#111" strokeWidth="2" />
+                  </g>
+                </svg>
+                {/* Show guest cart count only for guests */}
+                {(!user) && (() => {
+                  const guestCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
+                  return guestCart.length > 0 ? (
+                    <span style={{ position: 'absolute', top: -6, left: '70%', transform: 'translateX(-50%)', color: '#111', fontSize: 15, fontWeight: 600, minWidth: 28, textAlign: 'center', zIndex: 2 }}>
+                      {guestCart.length}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              {/* Customer cart icon (only for logged-in users) */}
+              {user && (
+                <div
+                  style={{ display: 'flex', alignItems: 'flex-end', cursor: 'pointer', position: 'relative', height: 38, width: 54, justifyContent: 'center', marginLeft: '6px', marginRight: '18px' }}
+                  onClick={() => {
+                    navigate('/customer/cart');
+                  }}
+                >
+                  <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g>
+                      <path d="M4 8H8L12 26H30L34 12H10" stroke="#00796b" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      <circle cx="14" cy="32" r="3" fill="#00796b" />
+                      <circle cx="28" cy="32" r="3" fill="#00796b" />
+                      <line x1="10" y1="12" x2="32" y2="12" stroke="#00796b" strokeWidth="2" />
+                      <line x1="12" y1="18" x2="30" y2="18" stroke="#00796b" strokeWidth="2" />
+                      <line x1="14" y1="12" x2="14" y2="26" stroke="#00796b" strokeWidth="2" />
+                      <line x1="20" y1="12" x2="20" y2="26" stroke="#00796b" strokeWidth="2" />
+                      <line x1="26" y1="12" x2="26" y2="26" stroke="#00796b" strokeWidth="2" />
+                    </g>
+                  </svg>
+                  {/* Show customer cart count only for logged-in users */}
+                  {cartItems.length > 0 && (
+                    <span style={{ position: 'absolute', top: -6, left: '70%', transform: 'translateX(-50%)', color: '#00796b', fontSize: 15, fontWeight: 600, minWidth: 28, textAlign: 'center', zIndex: 2 }}>
+                      {cartItems.length}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           </>

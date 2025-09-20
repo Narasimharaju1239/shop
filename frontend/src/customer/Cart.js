@@ -1,9 +1,11 @@
 import React, { useContext } from 'react';
 import { CartContext } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const Cart = () => {
   const { cartItems, removeFromCart, setCartItems, clearCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
 
@@ -77,10 +79,24 @@ const Cart = () => {
                 </div>
               </div>
             ))}
-            <button onClick={() => navigate('/customer/checkout')} style={{
-              padding: '10px 20px', background: '#00796b', color: '#fff',
-              border: 'none', marginTop: '10px', fontWeight: 600, fontSize: 16
-            }}>Proceed to Checkout</button>
+            <button
+              onClick={() => {
+                if (!user) {
+                  // Show login prompt for guests
+                  if (window.confirm('You need to login to checkout. Do you want to login now?')) {
+                    navigate('/auth/login');
+                  }
+                } else {
+                  navigate('/customer/checkout');
+                }
+              }}
+              style={{
+                padding: '10px 20px', background: '#00796b', color: '#fff',
+                border: 'none', marginTop: '10px', fontWeight: 600, fontSize: 16
+              }}
+            >
+              Proceed to Checkout
+            </button>
           </div>
         )}
       </div>

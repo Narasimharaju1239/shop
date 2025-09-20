@@ -21,6 +21,7 @@ import OwnerProducts from './owner/Products';
 import CustomerProducts from './customer/Products';
 import ProductDetails from './customer/ProductDetails';
 import Cart from './customer/Cart';
+import GuestCart from './customer/GuestCart';
 import Orders from './customer/Orders';
 import CustomerProfile from './customer/Profile';
 import ManageOrders from './owner/ManageOrders';
@@ -54,7 +55,8 @@ const RoutesConfig = () => {
       <Route path="/owner/products" element={<PrivateRoute role="owner"><Layout><OwnerProducts /></Layout></PrivateRoute>} />
       <Route path="/customer/products" element={<Layout><CustomerProducts /></Layout>} />
       <Route path="/customer/products/:id" element={<Layout><ProductDetails /></Layout>} />
-      <Route path="/customer/cart" element={<Layout><Cart /></Layout>} />
+  <Route path="/customer/cart" element={<Layout><Cart /></Layout>} />
+  <Route path="/guest/cart" element={<Layout><GuestCart /></Layout>} />
       <Route path="/customer/orders" element={<PrivateRoute role="customer"><Layout><Orders /></Layout></PrivateRoute>} />
       <Route path="/customer/profile" element={<PrivateRoute role="customer"><Layout><CustomerProfile /></Layout></PrivateRoute>} />
       <Route path="/owner/orders" element={<PrivateRoute role="owner"><Layout><ManageOrders /></Layout></PrivateRoute>} />

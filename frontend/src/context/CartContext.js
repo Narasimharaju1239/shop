@@ -6,6 +6,24 @@ import { toast } from 'react-toastify';
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
+  // Merge guest cart into customer cart after login
+  const mergeGuestCartToCustomerCart = async () => {
+    const guestCart = JSON.parse(localStorage.getItem('cartItems') || '[]');
+    if (user && user.token && guestCart.length > 0) {
+      try {
+        // Send each guest cart item to backend
+        for (const item of guestCart) {
+          await API.post('/cart/add', { productId: item._id, quantity: item.quantity || 1 });
+        }
+        // Fetch updated cart from backend
+        const res = await API.get('/cart');
+        setCartItems(res.data.items || []);
+        localStorage.setItem('cartItems', JSON.stringify([])); // Clear guest cart
+      } catch {
+        // Handle error silently
+      }
+    }
+  };
   const { user } = useContext(AuthContext);
   // Initialize cartItems from localStorage if available
   const [cartItems, setCartItems] = useState(() => {
@@ -14,10 +32,13 @@ export const CartProvider = ({ children }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  // Save cartItems to localStorage whenever they change
+  // Save cartItems to localStorage only for guests (not logged in)
   useEffect(() => {
     if (!user) {
       localStorage.setItem('cartItems', JSON.stringify(cartItems));
+    } else {
+      // When user logs in, do not update guest cart in localStorage
+      // Optionally, clear guest cart after merging (already handled in mergeGuestCartToCustomerCart)
     }
   }, [cartItems, user]);
 
@@ -39,9 +60,9 @@ export const CartProvider = ({ children }) => {
     if (user && user.token) {
       fetchCart();
     } else {
-      // If user logs out, reset to guest cart from localStorage
-      const saved = localStorage.getItem('cartItems');
-      setCartItems(saved ? JSON.parse(saved) : []);
+      // If user logs out, start with empty guest cart (do not restore from localStorage)
+      setCartItems([]);
+      localStorage.setItem('cartItems', JSON.stringify([]));
     }
   }, [user, user?._id, user?.id, user?.token]);
 
@@ -106,7 +127,7 @@ export const CartProvider = ({ children }) => {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, loading, setCartItems }}>
+  <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart, loading, setCartItems, mergeGuestCartToCustomerCart }}>
       {children}
     </CartContext.Provider>
   );

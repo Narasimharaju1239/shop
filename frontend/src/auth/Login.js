@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { CartContext } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import API from '../utils/api';
 import Navbar from '../common/Navbar';
@@ -12,6 +13,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useContext(AuthContext);
+  const { mergeGuestCartToCustomerCart } = useContext(CartContext);
   const { currentTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -46,6 +48,8 @@ const Login = () => {
     try {
       const res = await API.post('/auth/login', { email, password });
       login(res.data);
+      // Merge guest cart to customer cart after login
+      await mergeGuestCartToCustomerCart();
       if (res.data.role === 'owner') navigate('/owner/home');
       else navigate('/customer/home');
     } catch (err) {
